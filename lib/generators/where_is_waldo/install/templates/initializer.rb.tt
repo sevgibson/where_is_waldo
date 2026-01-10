@@ -1,0 +1,42 @@
+# frozen_string_literal: true
+
+WhereIsWaldo.configure do |config|
+  # Storage adapter: :database or :redis
+  config.adapter = :database
+
+  # Table name for presence records
+  config.table_name = "<%= table_name %>"
+
+  # Column names - must match your migration
+  config.session_column = :<%= session_column %>   # Unique per connection/tab
+  config.subject_column = :<%= subject_column %>   # Who is present (user_id, account_id, etc.)
+  config.room_column = :<%= room_column %>         # Where they are (room_id, channel_id, org_id)
+
+  # Subject model for eager loading (optional)
+  # Set to nil to disable association
+  # config.subject_class = "User"
+
+  # Custom subject data proc (optional)
+  # Called with the subject record to build presence hash
+  # config.subject_data_proc = ->(subject) {
+  #   {
+  #     id: subject.id,
+  #     name: subject.name,
+  #     avatar_url: subject.avatar_url
+  #   }
+  # }
+
+  # Timing
+  config.timeout = 90            # Seconds until considered offline
+  config.heartbeat_interval = 30 # Expected heartbeat frequency
+
+  # Redis client (only needed for :redis adapter)
+  # config.redis_client = Redis.new(url: ENV["REDIS_URL"])
+
+  # Authentication proc for ActionCable connections (optional)
+  # Receives the request object, should return subject_id or nil
+  # config.authenticate_proc = ->(request) {
+  #   token = request.params[:token]
+  #   # Decode token and return subject_id
+  # }
+end

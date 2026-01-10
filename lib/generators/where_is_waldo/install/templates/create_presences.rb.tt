@@ -1,0 +1,43 @@
+# frozen_string_literal: true
+
+class Create<%= table_name.camelize %> < ActiveRecord::Migration[7.0]
+  def change
+    create_table :<%= table_name %> do |t|
+      # Identifiers - column names are configurable
+      t.string :<%= session_column %>, null: false    # Unique session/connection identifier
+      t.bigint :<%= subject_column %>, null: false    # Who (user, account, device, etc.)
+      t.bigint :<%= room_column %>, null: false       # Where (room, channel, org, etc.)
+
+      # Timestamps
+      t.datetime :connected_at, null: false
+      t.datetime :last_heartbeat, null: false
+      t.datetime :last_activity
+
+      # Activity state
+      t.boolean :tab_visible, default: true, null: false
+      t.boolean :subject_active, default: true, null: false
+
+      # Extensible metadata
+      t.json :metadata
+
+      t.timestamps
+    end
+
+    # Session must be unique
+    add_index :<%= table_name %>, :<%= session_column %>, unique: true
+
+    # Query by room + heartbeat (most common query)
+    add_index :<%= table_name %>, [:<%= room_column %>, :last_heartbeat]
+
+    # Query by subject
+    add_index :<%= table_name %>, [:<%= subject_column %>, :<%= room_column %>]
+
+    # Cleanup old records
+    add_index :<%= table_name %>, :last_heartbeat
+
+<% if subject_table.present? -%>
+    # Foreign key to subject table
+    add_foreign_key :<%= table_name %>, :<%= subject_table %>, column: :<%= subject_column %>
+<% end -%>
+  end
+end

@@ -1,0 +1,106 @@
+# frozen_string_literal: true
+
+module WhereIsWaldo
+  module Adapters
+    class DatabaseAdapter < BaseAdapter
+      def connect(session_id:, subject_id:, room_id:, metadata: {})
+        now = Time.current
+
+        attrs = {
+          session_column => session_id,
+          subject_column => subject_id,
+          room_column => room_id,
+          connected_at: now,
+          last_heartbeat: now,
+          tab_visible: true,
+          subject_active: true,
+          last_activity: now,
+          metadata: metadata,
+          created_at: now,
+          updated_at: now
+        }
+
+        # rubocop:disable Rails/SkipsModelValidations -- intentional for performance
+        Presence.upsert(attrs, unique_by: session_column)
+        # rubocop:enable Rails/SkipsModelValidations
+        true
+      rescue StandardError => e
+        Rails.logger.error "[WhereIsWaldo] Connect failed: #{e.message}"
+        false
+      end
+
+      def disconnect(session_id: nil, subject_id: nil, room_id: nil)
+        scope = build_lookup_scope(session_id: session_id, subject_id: subject_id, room_id: room_id)
+        scope.delete_all
+        true
+      rescue StandardError => e
+        Rails.logger.error "[WhereIsWaldo] Disconnect failed: #{e.message}"
+        false
+      end
+
+      def heartbeat(session_id: nil, subject_id: nil, room_id: nil,
+                    tab_visible: true, subject_active: true, metadata: {})
+        now = Time.current
+        updates = {
+          last_heartbeat: now,
+          tab_visible: tab_visible,
+          subject_active: subject_active,
+          updated_at: now
+        }
+        updates[:last_activity] = now if subject_active
+        updates[:metadata] = metadata if metadata.present?
+
+        scope = build_lookup_scope(session_id: session_id, subject_id: subject_id, room_id: room_id)
+
+        # rubocop:disable Rails/SkipsModelValidations -- intentional for performance
+        scope.update_all(updates).positive?
+        # rubocop:enable Rails/SkipsModelValidations
+      rescue StandardError => e
+        Rails.logger.error "[WhereIsWaldo] Heartbeat failed: #{e.message}"
+        false
+      end
+
+      def online_in_room(room_id, timeout: nil)
+        threshold = (timeout || default_timeout).seconds.ago
+
+        scope = Presence.where(room_column => room_id)
+                        .where("last_heartbeat > ?", threshold)
+
+        scope = scope.includes(:subject) if config.subject_class_constant
+        scope.map(&:as_presence_hash)
+      end
+
+      def sessions_for_subject(subject_id, room_id: nil)
+        scope = Presence.where(subject_column => subject_id)
+        scope = scope.where(room_column => room_id) if room_id
+        scope = scope.includes(:subject) if config.subject_class_constant
+        scope.map(&:as_presence_hash)
+      end
+
+      def session_status(session_id)
+        scope = Presence.where(session_column => session_id)
+        scope = scope.includes(:subject) if config.subject_class_constant
+        scope.first&.as_presence_hash
+      end
+
+      def cleanup(timeout: nil)
+        threshold = (timeout || default_timeout).seconds.ago
+        Presence.where(last_heartbeat: ...threshold).delete_all
+      end
+
+      private
+
+      def build_lookup_scope(session_id: nil, subject_id: nil, room_id: nil)
+        if session_id
+          Presence.where(session_column => session_id)
+        elsif subject_id && room_id
+          Presence.where(subject_column => subject_id, room_column => room_id)
+        elsif subject_id
+          Presence.where(subject_column => subject_id)
+        else
+          Presence.none
+        end
+      end
+    end
+  end
+end
