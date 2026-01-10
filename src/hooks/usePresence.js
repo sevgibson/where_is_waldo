@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getConsumer } from '../cable';
+import { getConsumer, handleMessage, getCableConfig } from '../cable';
 
 const DEFAULT_OPTIONS = {
   channelName: 'WhereIsWaldo::PresenceChannel',
@@ -12,7 +12,6 @@ const DEFAULT_OPTIONS = {
 /**
  * usePresence - Hook for real-time presence tracking
  *
- * @param {string|number} scopeId - The scope identifier (room, channel, org, etc.)
  * @param {Object} options - Configuration options
  * @param {Object} options.metadata - Metadata to attach to presence
  * @param {string} options.channelName - ActionCable channel name
@@ -20,15 +19,17 @@ const DEFAULT_OPTIONS = {
  * @param {number} options.activityTimeout - Activity timeout in ms
  * @param {boolean} options.trackActivity - Track user activity
  * @param {boolean} options.trackVisibility - Track tab visibility
+ * @param {Function} options.onConnected - Callback when connected
+ * @param {Function} options.onDisconnected - Callback when disconnected
  * @returns {Object} Presence state and methods
  */
-export function usePresence(scopeId, options = {}) {
+export function usePresence(options = {}) {
   const config = { ...DEFAULT_OPTIONS, ...options };
 
   const [connected, setConnected] = useState(false);
-  const [onlineSubjects, setOnlineSubjects] = useState([]);
   const [tabVisible, setTabVisible] = useState(true);
   const [subjectActive, setSubjectActive] = useState(true);
+  const [sessionId, setSessionId] = useState(null);
 
   const subscriptionRef = useRef(null);
   const heartbeatIntervalRef = useRef(null);
@@ -67,54 +68,38 @@ export function usePresence(scopeId, options = {}) {
     }
   }, [tabVisible, subjectActive, config.metadata]);
 
-  // Refresh online subjects
-  const refresh = useCallback(() => {
-    if (subscriptionRef.current) {
-      subscriptionRef.current.perform('get_online_subjects');
-    }
-  }, []);
-
   // Subscribe to channel
   useEffect(() => {
-    if (!scopeId) return;
-
     const consumer = getConsumer();
 
     subscriptionRef.current = consumer.subscriptions.create(
       {
         channel: config.channelName,
-        room_id: scopeId, // Backend uses room_id param
         metadata: config.metadata || {},
       },
       {
         connected() {
           setConnected(true);
-          this.perform('get_online_subjects');
+          const cableConfig = getCableConfig();
+          if (cableConfig.sessionId) {
+            setSessionId(cableConfig.sessionId);
+          }
+          config.onConnected?.();
         },
 
         disconnected() {
           setConnected(false);
+          config.onDisconnected?.();
         },
 
-        received(data) {
-          if (data.type === 'online_subjects') {
-            setOnlineSubjects(data.subjects || []);
-          } else if (data.type === 'presence_update') {
-            if (data.event === 'joined') {
-              setOnlineSubjects((prev) => {
-                if (prev.some((s) => s.session_id === data.session_id)) return prev;
-                return [...prev, {
-                  session_id: data.session_id,
-                  subject_id: data.subject_id,
-                  subject: data.subject,
-                }];
-              });
-            } else if (data.event === 'left') {
-              setOnlineSubjects((prev) =>
-                prev.filter((s) => s.session_id !== data.session_id)
-              );
-            }
+        received(message) {
+          // Check if targeted to specific session
+          if (message._target_session && message._target_session !== sessionId) {
+            return;
           }
+
+          // Route to registered handler
+          handleMessage(message);
         },
       }
     );
@@ -125,7 +110,7 @@ export function usePresence(scopeId, options = {}) {
         subscriptionRef.current = null;
       }
     };
-  }, [scopeId, config.channelName, config.metadata]);
+  }, [config.channelName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Heartbeat interval
   useEffect(() => {
@@ -172,10 +157,9 @@ export function usePresence(scopeId, options = {}) {
 
   return {
     connected,
-    onlineSubjects,
+    sessionId,
     tabVisible,
     subjectActive,
-    refresh,
     sendHeartbeat,
   };
 }

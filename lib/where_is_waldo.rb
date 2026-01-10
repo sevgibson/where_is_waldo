@@ -22,8 +22,7 @@ module WhereIsWaldo
       @configuration = Configuration.new
     end
 
-    # Delegate common methods to PresenceService for convenience
-    # These become available after Rails loads the engine
+    # === Presence Management ===
 
     def connect(...)
       PresenceService.connect(...)
@@ -37,40 +36,59 @@ module WhereIsWaldo
       PresenceService.heartbeat(...)
     end
 
-    def online_in_room(...)
-      PresenceService.online_in_room(...)
+    # === Queries ===
+
+    # Get online subjects from a scope
+    # @example WhereIsWaldo.online(org.members) => AR relation of online members
+    def online(scope, timeout: nil)
+      PresenceService.online(scope, timeout: timeout)
     end
 
-    def subject_online?(...)
-      PresenceService.subject_online?(...)
+    # Get online subject IDs from a scope
+    # @example WhereIsWaldo.online_ids(org.members.admin)
+    def online_ids(scope, timeout: nil)
+      PresenceService.online_ids(scope, timeout: timeout)
     end
 
-    def subject_in_room?(...)
-      PresenceService.subject_in_room?(...)
+    # Get all online subject IDs (no scope filtering)
+    def all_online_ids(timeout: nil)
+      PresenceService.all_online_ids(timeout: timeout)
     end
 
-    def sessions_for_subject(...)
-      PresenceService.sessions_for_subject(...)
+    def subject_online?(subject_id)
+      PresenceService.subject_online?(subject_id)
     end
 
-    def session_status(...)
-      PresenceService.session_status(...)
+    def sessions_for_subject(subject_id)
+      PresenceService.sessions_for_subject(subject_id)
     end
 
-    def cleanup(...)
-      PresenceService.cleanup(...)
+    def session_status(session_id)
+      PresenceService.session_status(session_id)
     end
 
-    def broadcast_to_room(...)
-      Broadcaster.broadcast_to_room(...)
+    def cleanup(timeout: nil)
+      PresenceService.cleanup(timeout: timeout)
     end
 
-    def broadcast_to_subject(...)
-      Broadcaster.broadcast_to_subject(...)
+    # === Broadcasting ===
+
+    # Broadcast to subjects in a scope
+    # @example WhereIsWaldo.broadcast_to(org.members, :notification, { message: "Hello" })
+    def broadcast_to(scope, message_type, data = {})
+      Broadcaster.broadcast_to(scope, message_type, data)
     end
 
-    def broadcast_to_session(...)
-      Broadcaster.broadcast_to_session(...)
+    # Broadcast only to online subjects in a scope
+    # @example WhereIsWaldo.broadcast_to_online(org.members, :alert, { message: "Urgent" })
+    def broadcast_to_online(scope, message_type, data = {})
+      Broadcaster.broadcast_to_online(scope, message_type, data)
+    end
+
+    # Broadcast to a specific session
+    # @example WhereIsWaldo.broadcast_to_session(session_id, :force_logout, { reason: "..." })
+    def broadcast_to_session(session_id, message_type, data = {})
+      Broadcaster.broadcast_to_session(session_id, message_type, data)
     end
   end
 end

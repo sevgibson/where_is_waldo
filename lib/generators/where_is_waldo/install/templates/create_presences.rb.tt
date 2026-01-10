@@ -5,8 +5,7 @@ class Create<%= table_name.camelize %> < ActiveRecord::Migration[7.0]
     create_table :<%= table_name %> do |t|
       # Identifiers - column names are configurable
       t.string :<%= session_column %>, null: false    # Unique session/connection identifier
-      t.bigint :<%= subject_column %>, null: false    # Who (user, account, device, etc.)
-      t.bigint :<%= room_column %>, null: false       # Where (room, channel, org, etc.)
+      t.bigint :<%= subject_column %>, null: false    # Who (user, member, student, etc.)
 
       # Timestamps
       t.datetime :connected_at, null: false
@@ -26,11 +25,8 @@ class Create<%= table_name.camelize %> < ActiveRecord::Migration[7.0]
     # Session must be unique
     add_index :<%= table_name %>, :<%= session_column %>, unique: true
 
-    # Query by room + heartbeat (most common query)
-    add_index :<%= table_name %>, [:<%= room_column %>, :last_heartbeat]
-
     # Query by subject
-    add_index :<%= table_name %>, [:<%= subject_column %>, :<%= room_column %>]
+    add_index :<%= table_name %>, :<%= subject_column %>
 
     # Cleanup old records
     add_index :<%= table_name %>, :last_heartbeat

@@ -5,49 +5,42 @@ module WhereIsWaldo
     class BaseAdapter
       # Register a presence
       # @param session_id [String] Unique session identifier
-      # @param subject_id [Integer/String] Subject identifier (user, account, etc.)
-      # @param room_id [Integer/String] Room identifier
+      # @param subject_id [Integer/String] Subject identifier (user, member, etc.)
       # @param metadata [Hash] Additional data
       # @return [Boolean] success
-      def connect(session_id:, subject_id:, room_id:, metadata: {})
+      def connect(session_id:, subject_id:, metadata: {})
         raise NotImplementedError
       end
 
       # Remove a presence
-      # @param session_id [String] Session identifier (optional if subject_id + room_id provided)
+      # @param session_id [String] Session identifier (optional if subject_id provided)
       # @param subject_id [Integer/String] Subject identifier (optional)
-      # @param room_id [Integer/String] Room identifier (optional)
       # @return [Boolean] success
-      def disconnect(session_id: nil, subject_id: nil, room_id: nil)
+      def disconnect(session_id: nil, subject_id: nil)
         raise NotImplementedError
       end
 
       # Update heartbeat
-      # @param session_id [String] Session identifier (optional if subject_id + room_id provided)
-      # @param subject_id [Integer/String] Subject identifier (optional)
-      # @param room_id [Integer/String] Room identifier (optional)
+      # @param session_id [String] Session identifier
       # @param tab_visible [Boolean] Is tab in foreground
       # @param subject_active [Boolean] Recent activity
       # @param metadata [Hash] Additional data
       # @return [Boolean] success
-      def heartbeat(session_id: nil, subject_id: nil, room_id: nil,
-                    tab_visible: true, subject_active: true, metadata: {})
+      def heartbeat(session_id:, tab_visible: true, subject_active: true, metadata: {})
         raise NotImplementedError
       end
 
-      # Get all online sessions in a room
-      # @param room_id [Integer/String] Room identifier
+      # Get all online subject IDs
       # @param timeout [Integer] Seconds threshold
-      # @return [Array<Hash>] Presence records
-      def online_in_room(room_id, timeout: nil)
+      # @return [Array<Integer>] Subject IDs
+      def online_subject_ids(timeout: nil)
         raise NotImplementedError
       end
 
       # Get all sessions for a subject
       # @param subject_id [Integer/String] Subject identifier
-      # @param room_id [Integer/String] Optional room filter
       # @return [Array<Hash>] Presence records
-      def sessions_for_subject(subject_id, room_id: nil)
+      def sessions_for_subject(subject_id)
         raise NotImplementedError
       end
 
@@ -81,10 +74,6 @@ module WhereIsWaldo
 
       def subject_column
         config.subject_column
-      end
-
-      def room_column
-        config.room_column
       end
     end
   end

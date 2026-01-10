@@ -3,13 +3,12 @@
 module WhereIsWaldo
   module Adapters
     class DatabaseAdapter < BaseAdapter
-      def connect(session_id:, subject_id:, room_id:, metadata: {})
+      def connect(session_id:, subject_id:, metadata: {})
         now = Time.current
 
         attrs = {
           session_column => session_id,
           subject_column => subject_id,
-          room_column => room_id,
           connected_at: now,
           last_heartbeat: now,
           tab_visible: true,
@@ -29,8 +28,8 @@ module WhereIsWaldo
         false
       end
 
-      def disconnect(session_id: nil, subject_id: nil, room_id: nil)
-        scope = build_lookup_scope(session_id: session_id, subject_id: subject_id, room_id: room_id)
+      def disconnect(session_id: nil, subject_id: nil)
+        scope = build_lookup_scope(session_id: session_id, subject_id: subject_id)
         scope.delete_all
         true
       rescue StandardError => e
@@ -38,8 +37,7 @@ module WhereIsWaldo
         false
       end
 
-      def heartbeat(session_id: nil, subject_id: nil, room_id: nil,
-                    tab_visible: true, subject_active: true, metadata: {})
+      def heartbeat(session_id:, tab_visible: true, subject_active: true, metadata: {})
         now = Time.current
         updates = {
           last_heartbeat: now,
@@ -50,7 +48,7 @@ module WhereIsWaldo
         updates[:last_activity] = now if subject_active
         updates[:metadata] = metadata if metadata.present?
 
-        scope = build_lookup_scope(session_id: session_id, subject_id: subject_id, room_id: room_id)
+        scope = Presence.where(session_column => session_id)
 
         # rubocop:disable Rails/SkipsModelValidations -- intentional for performance
         scope.update_all(updates).positive?
@@ -60,19 +58,16 @@ module WhereIsWaldo
         false
       end
 
-      def online_in_room(room_id, timeout: nil)
+      def online_subject_ids(timeout: nil)
         threshold = (timeout || default_timeout).seconds.ago
 
-        scope = Presence.where(room_column => room_id)
-                        .where("last_heartbeat > ?", threshold)
-
-        scope = scope.includes(:subject) if config.subject_class_constant
-        scope.map(&:as_presence_hash)
+        Presence.where("last_heartbeat > ?", threshold)
+                .distinct
+                .pluck(subject_column)
       end
 
-      def sessions_for_subject(subject_id, room_id: nil)
+      def sessions_for_subject(subject_id)
         scope = Presence.where(subject_column => subject_id)
-        scope = scope.where(room_column => room_id) if room_id
         scope = scope.includes(:subject) if config.subject_class_constant
         scope.map(&:as_presence_hash)
       end
@@ -90,11 +85,9 @@ module WhereIsWaldo
 
       private
 
-      def build_lookup_scope(session_id: nil, subject_id: nil, room_id: nil)
+      def build_lookup_scope(session_id: nil, subject_id: nil)
         if session_id
           Presence.where(session_column => session_id)
-        elsif subject_id && room_id
-          Presence.where(subject_column => subject_id, room_column => room_id)
         elsif subject_id
           Presence.where(subject_column => subject_id)
         else

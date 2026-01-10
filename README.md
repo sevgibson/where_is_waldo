@@ -4,12 +4,13 @@ Real-time presence tracking for Rails + React applications using ActionCable.
 
 ## Features
 
-- Track who's online in any scope (rooms, channels, organizations, etc.)
+- Track who's online across your application
+- Broadcast messages to any AR scope (users, members, admins, etc.)
+- Message type routing with registered handlers
 - Monitor tab visibility and user activity
 - Multi-session support (same user on multiple devices/tabs)
-- Fully configurable column names and terminology
+- Fully configurable - no assumptions about your model names
 - Database or Redis storage adapters
-- React hooks and context provider
 
 ## Installation
 
@@ -28,7 +29,6 @@ rails generate where_is_waldo:install \
   --table_name=presences \
   --session_column=session_id \
   --subject_column=user_id \
-  --room_column=channel_id \
   --subject_table=users
 ```
 
@@ -56,33 +56,27 @@ WhereIsWaldo.configure do |config|
   # Table/column names (must match your migration)
   config.table_name = "presences"
   config.session_column = :session_id
-  config.subject_column = :user_id
-  config.room_column = :channel_id
+  config.subject_column = :user_id  # or :member_id, :student_id, etc.
 
-  # Subject model for eager loading (optional)
-  config.subject_class = "User"
+  # Subject model (required for scope-based operations)
+  config.subject_class = "User"  # or "Member", "Student", etc.
 
   # Custom subject data (optional)
   config.subject_data_proc = ->(user) {
-    {
-      id: user.id,
-      name: user.name,
-      avatar_url: user.avatar_url
-    }
+    { id: user.id, name: user.name, avatar_url: user.avatar_url }
   }
 
   # Timing
-  config.timeout = 90            # Seconds until offline
-  config.heartbeat_interval = 30 # Expected heartbeat frequency
+  config.timeout = 90
+  config.heartbeat_interval = 30
 
-  # Authentication (optional - customize for your auth system)
+  # Authentication (customize for your auth system)
   config.authenticate_proc = ->(request) {
     token = request.params[:token]
     # Decode your token and return subject_id
-    # Or return { subject_id: ..., session_id: ... }
   }
 
-  # Redis client (for :redis adapter)
+  # Redis (for :redis adapter)
   # config.redis_client = Redis.new(url: ENV["REDIS_URL"])
 end
 ```
@@ -92,16 +86,23 @@ end
 ```jsx
 import { configureCable } from '@sevgibson/where-is-waldo';
 
-// Configure the ActionCable connection
 configureCable({
   url: '/cable',
   getToken: () => localStorage.getItem('auth_token'),
+  handlers: {
+    notification: (data) => showToast(data.message),
+    force_logout: () => {
+      logout();
+      navigate('/login');
+    },
+    data_refresh: (data) => queryClient.invalidateQueries(data.keys),
+  }
 });
 ```
 
 ## Usage
 
-### React Context Provider
+### React Provider
 
 ```jsx
 import { PresenceProvider, usePresenceContext } from '@sevgibson/where-is-waldo';
@@ -109,68 +110,114 @@ import { PresenceProvider, usePresenceContext } from '@sevgibson/where-is-waldo'
 function App() {
   return (
     <PresenceProvider
-      roomId={currentChannelId}
       metadata={{ device: 'desktop' }}
-      onSubjectJoined={(data) => console.log('Joined:', data)}
-      onSubjectLeft={(data) => console.log('Left:', data)}
+      onConnected={() => console.log('Connected!')}
+      onDisconnected={() => console.log('Disconnected')}
     >
-      <OnlineIndicator />
+      <MyApp />
     </PresenceProvider>
   );
 }
 
-function OnlineIndicator() {
-  const { connected, onlineSubjects, tabVisible, subjectActive } = usePresenceContext();
+function StatusIndicator() {
+  const { connected, tabVisible, subjectActive } = usePresenceContext();
 
   return (
-    <div>
-      <span>{connected ? 'Connected' : 'Disconnected'}</span>
-      <ul>
-        {onlineSubjects.map((presence) => (
-          <li key={presence.session_id}>
-            {presence.subject?.name || `User ${presence.subject_id}`}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <span className={connected ? 'online' : 'offline'}>
+      {connected ? 'Connected' : 'Disconnected'}
+    </span>
   );
 }
 ```
 
-### usePresence Hook (without Provider)
+### usePresence Hook
 
 ```jsx
 import { usePresence } from '@sevgibson/where-is-waldo';
 
-function ChatRoom({ channelId }) {
-  const { connected, onlineSubjects, refresh } = usePresence(channelId, {
-    heartbeatInterval: 30000,
-    activityTimeout: 30000,
+function Dashboard() {
+  const { connected, tabVisible, subjectActive } = usePresence({
+    metadata: { page: 'dashboard' },
+    onConnected: () => console.log('Connected'),
   });
 
-  return (
-    <div>
-      <h3>Online ({onlineSubjects.length})</h3>
-      <button onClick={refresh}>Refresh</button>
-    </div>
-  );
+  return <div>Status: {connected ? 'Online' : 'Offline'}</div>;
 }
 ```
 
-### Backend API
+### Backend: Query Who's Online
 
 ```ruby
-# Register presence
-WhereIsWaldo.connect(
-  session_id: "abc-123",
-  subject_id: current_user.id,
-  room_id: channel.id
-)
+# Get online users from any AR scope
+WhereIsWaldo.online(org.users)
+# => ActiveRecord::Relation of online users
+
+WhereIsWaldo.online(org.users.admin)
+# => Only online admins in this org
+
+WhereIsWaldo.online(User.where(plan_id: premium_plan.id))
+# => Online users on premium plan
+
+# Just get IDs
+WhereIsWaldo.online_ids(org.users)
+# => [1, 5, 12, ...]
+
+# Check if specific user is online
+WhereIsWaldo.subject_online?(user.id)
+# => true/false
+
+# Get all sessions for a user
+WhereIsWaldo.sessions_for_subject(user.id)
+# => [{ session_id: "...", connected_at: ..., tab_visible: true, ... }]
+```
+
+### Backend: Broadcasting
+
+```ruby
+# Broadcast to users in any AR scope
+WhereIsWaldo.broadcast_to(org.users, :notification, {
+  message: "System maintenance in 5 minutes"
+})
+
+# Broadcast to admins only
+WhereIsWaldo.broadcast_to(org.users.admin, :alert, {
+  level: "warning",
+  message: "Server load high"
+})
+
+# Broadcast to users on a specific plan
+WhereIsWaldo.broadcast_to(User.where(plan_id: starter.id), :upgrade_prompt, {
+  feature: "advanced_reports"
+})
+
+# Broadcast only to online users (skip offline)
+WhereIsWaldo.broadcast_to_online(org.users, :realtime_update, {
+  type: "new_message",
+  count: 5
+})
+
+# Broadcast to a single user (all their sessions)
+WhereIsWaldo.broadcast_to(user, :force_logout, {
+  reason: "Password changed"
+})
+
+# Broadcast to a specific session
+WhereIsWaldo.broadcast_to_session(session_id, :session_warning, {
+  message: "This session will expire soon"
+})
+```
+
+### Presence Management
+
+```ruby
+# Register presence (usually done automatically by channel)
+WhereIsWaldo.connect(session_id: "abc-123", subject_id: user.id)
 
 # Remove presence
 WhereIsWaldo.disconnect(session_id: "abc-123")
-# Or disconnect all sessions for a subject
-WhereIsWaldo.disconnect(subject_id: current_user.id)
+
+# Disconnect all sessions for a user
+WhereIsWaldo.disconnect(subject_id: user.id)
 
 # Update heartbeat
 WhereIsWaldo.heartbeat(
@@ -179,37 +226,8 @@ WhereIsWaldo.heartbeat(
   subject_active: false
 )
 
-# Query online subjects
-WhereIsWaldo.online_in_room(channel.id)
-# => [{ session_id: "...", subject_id: 1, subject: {...}, ... }]
-
-# Get sessions for a subject
-WhereIsWaldo.sessions_for_subject(user.id)
-
-# Check if subject is online
-WhereIsWaldo.subject_online?(user.id)
-
 # Cleanup stale records (for database adapter)
 WhereIsWaldo.cleanup(timeout: 120)
-```
-
-### Broadcasting
-
-```ruby
-# Broadcast to all in a room
-WhereIsWaldo.broadcast_to_room(channel.id, {
-  type: "notification",
-  message: "Hello everyone!"
-})
-
-# Broadcast to a specific subject (all their sessions)
-WhereIsWaldo.broadcast_to_subject(user.id, {
-  type: "alert",
-  message: "You have a new message"
-})
-
-# Broadcast to a specific session
-WhereIsWaldo.broadcast_to_session("abc-123", { ... })
 ```
 
 ## Cleanup Job
@@ -217,15 +235,38 @@ WhereIsWaldo.broadcast_to_session("abc-123", { ... })
 For the database adapter, schedule cleanup of stale records:
 
 ```ruby
-# config/initializers/sidekiq.rb (if using Sidekiq)
+# config/initializers/sidekiq.rb
 Sidekiq::Cron::Job.create(
   name: 'Presence cleanup',
-  cron: '*/5 * * * *',  # Every 5 minutes
+  cron: '*/5 * * * *',
   class: 'WhereIsWaldo::PresenceCleanupJob'
 )
+```
 
-# Or call manually
-WhereIsWaldo::PresenceCleanupJob.perform_later
+## Message Handler Registration
+
+Register handlers at app initialization or dynamically:
+
+```jsx
+import { configureCable, registerHandler, unregisterHandler } from '@sevgibson/where-is-waldo';
+
+// At initialization
+configureCable({
+  url: '/cable',
+  getToken: () => getAuthToken(),
+  handlers: {
+    notification: showNotification,
+    force_logout: handleForceLogout,
+  }
+});
+
+// Or register dynamically
+registerHandler('chat_message', (data) => {
+  addMessageToChat(data);
+});
+
+// Unregister when no longer needed
+unregisterHandler('chat_message');
 ```
 
 ## License

@@ -29,28 +29,20 @@ module WhereIsWaldo
       def subject_column
         WhereIsWaldo.config.subject_column
       end
-
-      def room_column
-        WhereIsWaldo.config.room_column
-      end
     end
-
-    # Validations using configured column names
-    validates_presence_of -> { self.class.session_column }
-    validates_uniqueness_of -> { self.class.session_column }
 
     # Scopes
     scope :online, ->(timeout: nil) {
-      threshold = (timeout || WhereIsWaldo.config.timeout_duration).ago
+      threshold = (timeout || WhereIsWaldo.config.timeout).seconds.ago
       where("last_heartbeat > ?", threshold)
     }
 
-    scope :in_room, ->(room_id) {
-      where(self.class.room_column => room_id)
+    scope :for_subject, ->(subject_id) {
+      where(WhereIsWaldo.config.subject_column => subject_id)
     }
 
-    scope :for_subject, ->(subject_id) {
-      where(self.class.subject_column => subject_id)
+    scope :for_subjects, ->(subject_ids) {
+      where(WhereIsWaldo.config.subject_column => subject_ids)
     }
 
     scope :visible_tab, -> { where(tab_visible: true) }
@@ -61,9 +53,8 @@ module WhereIsWaldo
       config = WhereIsWaldo.config
 
       {
-        session_column => self[config.session_column],
-        subject_column => self[config.subject_column],
-        room_column => self[config.room_column],
+        session_id: self[config.session_column],
+        subject_id: self[config.subject_column],
         connected_at: connected_at&.iso8601,
         last_heartbeat: last_heartbeat&.iso8601,
         tab_visible: tab_visible,
@@ -71,28 +62,16 @@ module WhereIsWaldo
         last_activity: last_activity&.iso8601,
         metadata: metadata,
         subject: subject_data
-      }.transform_keys(&:to_sym)
+      }
     end
 
     # Check if this presence is considered online
     def online?(timeout: nil)
-      threshold = (timeout || WhereIsWaldo.config.timeout_duration).ago
+      threshold = (timeout || WhereIsWaldo.config.timeout).seconds.ago
       last_heartbeat && last_heartbeat > threshold
     end
 
     private
-
-    def session_column
-      self.class.session_column
-    end
-
-    def subject_column
-      self.class.subject_column
-    end
-
-    def room_column
-      self.class.room_column
-    end
 
     def subject_data
       subject_record = try(:subject)

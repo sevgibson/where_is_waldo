@@ -9,11 +9,9 @@ WhereIsWaldo.configure do |config|
 
   # Column names - must match your migration
   config.session_column = :<%= session_column %>   # Unique per connection/tab
-  config.subject_column = :<%= subject_column %>   # Who is present (user_id, account_id, etc.)
-  config.room_column = :<%= room_column %>         # Where they are (room_id, channel_id, org_id)
+  config.subject_column = :<%= subject_column %>   # Who is present (user_id, member_id, etc.)
 
-  # Subject model for eager loading (optional)
-  # Set to nil to disable association
+  # Subject model class (required for scope-based broadcasting)
   # config.subject_class = "User"
 
   # Custom subject data proc (optional)

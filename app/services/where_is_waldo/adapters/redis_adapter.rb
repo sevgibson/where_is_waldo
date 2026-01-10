@@ -3,13 +3,12 @@
 module WhereIsWaldo
   module Adapters
     class RedisAdapter < BaseAdapter
-      def connect(session_id:, subject_id:, room_id:, metadata: {})
+      def connect(session_id:, subject_id:, metadata: {})
         now = Time.current.to_i
 
         presence_data = {
           session_id: session_id,
           subject_id: subject_id,
-          room_id: room_id,
           connected_at: now,
           last_heartbeat: now,
           tab_visible: true,
@@ -22,8 +21,8 @@ module WhereIsWaldo
           # Store session data
           tx.set(session_key(session_id), presence_data.to_json, ex: ttl)
 
-          # Add to room set with timestamp as score
-          tx.zadd(room_key(room_id), now, session_id)
+          # Add to online subjects sorted set with timestamp as score
+          tx.zadd(online_subjects_key, now, subject_id)
 
           # Add to subject's sessions set
           tx.sadd(subject_sessions_key(subject_id), session_id)
@@ -38,11 +37,9 @@ module WhereIsWaldo
         false
       end
 
-      def disconnect(session_id: nil, subject_id: nil, room_id: nil)
+      def disconnect(session_id: nil, subject_id: nil)
         if session_id
           disconnect_session(session_id)
-        elsif subject_id && room_id
-          disconnect_subject_from_room(subject_id, room_id)
         elsif subject_id
           disconnect_subject(subject_id)
         end
@@ -53,12 +50,8 @@ module WhereIsWaldo
         false
       end
 
-      def heartbeat(session_id: nil, subject_id: nil, room_id: nil,
-                    tab_visible: true, subject_active: true, metadata: {})
-        target_session_id = session_id || find_session_id(subject_id, room_id)
-        return false unless target_session_id
-
-        data = get_presence_data(target_session_id)
+      def heartbeat(session_id:, tab_visible: true, subject_active: true, metadata: {})
+        data = get_presence_data(session_id)
         return false unless data
 
         now = Time.current.to_i
@@ -69,8 +62,8 @@ module WhereIsWaldo
         data["metadata"] = data["metadata"].merge(metadata) if metadata.present?
 
         redis.multi do |tx|
-          tx.set(session_key(target_session_id), data.to_json, ex: ttl)
-          tx.zadd(room_key(data["room_id"]), now, target_session_id)
+          tx.set(session_key(session_id), data.to_json, ex: ttl)
+          tx.zadd(online_subjects_key, now, data["subject_id"])
         end
 
         true
@@ -79,30 +72,20 @@ module WhereIsWaldo
         false
       end
 
-      def online_in_room(room_id, timeout: nil)
+      def online_subject_ids(timeout: nil)
         threshold = Time.current.to_i - (timeout || default_timeout)
 
-        # Get session IDs with heartbeat after threshold
-        session_ids = redis.zrangebyscore(room_key(room_id), threshold, "+inf")
+        # Get subject IDs with heartbeat after threshold
+        redis.zrangebyscore(online_subjects_key, threshold, "+inf").map(&:to_i)
+      end
+
+      def sessions_for_subject(subject_id)
+        session_ids = redis.smembers(subject_sessions_key(subject_id))
 
         session_ids.filter_map do |sid|
           data = get_presence_data(sid)
           build_presence_hash(data) if data
         end
-      end
-
-      def sessions_for_subject(subject_id, room_id: nil)
-        session_ids = redis.smembers(subject_sessions_key(subject_id))
-
-        results = session_ids.filter_map do |sid|
-          data = get_presence_data(sid)
-          next unless data
-          next if room_id && data["room_id"].to_s != room_id.to_s
-
-          build_presence_hash(data)
-        end
-
-        results
       end
 
       def session_status(session_id)
@@ -116,22 +99,25 @@ module WhereIsWaldo
         threshold = Time.current.to_i - (timeout || default_timeout)
         cleaned = 0
 
-        # Scan all room keys
-        cursor = "0"
-        loop do
-          cursor, keys = redis.scan(cursor, match: "#{key_prefix}:room:*")
+        # Get stale subject IDs
+        stale_subject_ids = redis.zrangebyscore(online_subjects_key, "-inf", threshold)
 
-          keys.each do |room_key|
-            # Remove stale entries from sorted set
-            stale_sessions = redis.zrangebyscore(room_key, "-inf", threshold)
-            stale_sessions.each do |sid|
-              disconnect_session(sid)
-              cleaned += 1
-            end
+        stale_subject_ids.each do |subject_id|
+          # Check if any sessions are still active
+          session_ids = redis.smembers(subject_sessions_key(subject_id))
+          all_stale = session_ids.all? do |sid|
+            data = get_presence_data(sid)
+            !data || data["last_heartbeat"].to_i < threshold
           end
 
-          break if cursor == "0"
+          if all_stale
+            disconnect_subject(subject_id)
+            cleaned += 1
+          end
         end
+
+        # Remove stale entries from sorted set
+        redis.zremrangebyscore(online_subjects_key, "-inf", threshold)
 
         cleaned
       end
@@ -154,8 +140,8 @@ module WhereIsWaldo
         "#{key_prefix}:session:#{session_id}"
       end
 
-      def room_key(room_id)
-        "#{key_prefix}:room:#{room_id}"
+      def online_subjects_key
+        "#{key_prefix}:online_subjects"
       end
 
       def subject_sessions_key(subject_id)
@@ -173,46 +159,33 @@ module WhereIsWaldo
         JSON.parse(json)
       end
 
-      def find_session_id(subject_id, room_id)
-        return nil unless subject_id && room_id
-
-        session_ids = redis.smembers(subject_sessions_key(subject_id))
-        session_ids.find do |sid|
-          data = get_presence_data(sid)
-          data && data["room_id"].to_s == room_id.to_s
-        end
-      end
-
       def disconnect_session(session_id)
         data = get_presence_data(session_id)
         return unless data
 
+        subject_id = data["subject_id"]
+
         redis.multi do |tx|
           tx.del(session_key(session_id))
-          tx.zrem(room_key(data["room_id"]), session_id)
-          tx.srem(subject_sessions_key(data["subject_id"]), session_id)
+          tx.srem(subject_sessions_key(subject_id), session_id)
           tx.del(session_subject_key(session_id))
         end
-      end
 
-      def disconnect_subject_from_room(subject_id, room_id)
-        session_ids = redis.smembers(subject_sessions_key(subject_id))
-        session_ids.each do |sid|
-          data = get_presence_data(sid)
-          disconnect_session(sid) if data && data["room_id"].to_s == room_id.to_s
-        end
+        # If no more sessions for this subject, remove from online set
+        remaining = redis.scard(subject_sessions_key(subject_id))
+        redis.zrem(online_subjects_key, subject_id) if remaining.zero?
       end
 
       def disconnect_subject(subject_id)
         session_ids = redis.smembers(subject_sessions_key(subject_id))
         session_ids.each { |sid| disconnect_session(sid) }
+        redis.zrem(online_subjects_key, subject_id)
       end
 
       def build_presence_hash(data)
         {
           session_id: data["session_id"],
           subject_id: data["subject_id"],
-          room_id: data["room_id"],
           connected_at: Time.at(data["connected_at"]),
           last_heartbeat: Time.at(data["last_heartbeat"]),
           last_activity: data["last_activity"] ? Time.at(data["last_activity"]) : nil,

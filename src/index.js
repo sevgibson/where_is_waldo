@@ -4,6 +4,10 @@ export {
   getConsumer,
   disconnectCable,
   getCableConfig,
+  registerHandler,
+  unregisterHandler,
+  getHandlers,
+  handleMessage,
 } from './cable';
 
 // Context and Provider

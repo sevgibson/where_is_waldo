@@ -13,13 +13,11 @@ module WhereIsWaldo
       class_option :session_column, type: :string, default: "session_id",
                    desc: "Column name for session identifier"
       class_option :subject_column, type: :string, default: "subject_id",
-                   desc: "Column name for subject (user) identifier"
-      class_option :room_column, type: :string, default: "room_id",
-                   desc: "Column name for room identifier"
+                   desc: "Column name for subject (user/member/etc) identifier"
       class_option :table_name, type: :string, default: "presences",
                    desc: "Table name for presences"
       class_option :subject_table, type: :string, default: nil,
-                   desc: "Subject table for foreign key (e.g., 'users')"
+                   desc: "Subject table for foreign key (e.g., 'users', 'members')"
 
       def self.next_migration_number(_path)
         Time.now.utc.strftime("%Y%m%d%H%M%S")
@@ -45,21 +43,20 @@ module WhereIsWaldo
         say "  Table:          #{table_name}"
         say "  Session column: #{session_column}"
         say "  Subject column: #{subject_column}"
-        say "  Room column:    #{room_column}"
         say ""
         say "Next steps:"
         say ""
         say "1. Review the initializer:"
         say "   config/initializers/where_is_waldo.rb"
         say ""
-        say "2. Run migrations:"
+        say "2. Set your subject class in the initializer:"
+        say "   config.subject_class = 'User'  # or 'Member', 'Student', etc."
+        say ""
+        say "3. Run migrations:"
         say "   rails db:migrate"
         say ""
-        say "3. Add the React provider to your app:"
+        say "4. Add the React provider to your app:"
         say "   import { PresenceProvider } from '@sevgibson/where-is-waldo';"
-        say ""
-        say "4. Use the presence hooks in components:"
-        say "   const { connected, onlineSubjects } = usePresenceContext();"
         say ""
         say "=" * 60
       end
@@ -76,10 +73,6 @@ module WhereIsWaldo
 
       def subject_column
         options[:subject_column]
-      end
-
-      def room_column
-        options[:room_column]
       end
 
       def subject_table

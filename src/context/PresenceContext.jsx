@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { getConsumer } from '../cable';
+import { getConsumer, handleMessage, getCableConfig } from '../cable';
 
 const PresenceContext = createContext(null);
 
@@ -12,50 +12,39 @@ const DEFAULT_CONFIG = {
 };
 
 /**
- * PresenceProvider - Provides real-time presence tracking
+ * PresenceProvider - Provides real-time presence tracking and message handling
  *
  * @param {Object} props
  * @param {React.ReactNode} props.children
- * @param {string|number} props.roomId - Room/channel identifier
  * @param {Object} props.metadata - Optional metadata to attach to presence
  * @param {Object} props.config - Optional configuration overrides
  * @param {Function} props.onConnected - Callback when connected
  * @param {Function} props.onDisconnected - Callback when disconnected
- * @param {Function} props.onSubjectJoined - Callback when subject joins
- * @param {Function} props.onSubjectLeft - Callback when subject leaves
- * @param {Function} props.onMessage - Callback for broadcast messages
  */
 export function PresenceProvider({
   children,
-  roomId,
   metadata = {},
   config: configOverrides = {},
   onConnected,
   onDisconnected,
-  onSubjectJoined,
-  onSubjectLeft,
-  onMessage,
 }) {
   const config = { ...DEFAULT_CONFIG, ...configOverrides };
 
   const [connected, setConnected] = useState(false);
-  const [onlineSubjects, setOnlineSubjects] = useState([]);
   const [tabVisible, setTabVisible] = useState(true);
   const [subjectActive, setSubjectActive] = useState(true);
+  const [sessionId, setSessionId] = useState(null);
 
   const subscriptionRef = useRef(null);
   const heartbeatIntervalRef = useRef(null);
   const activityTimeoutRef = useRef(null);
-  const lastActivityRef = useRef(Date.now());
 
   // Track user activity
   const handleActivity = useCallback(() => {
-    lastActivityRef.current = Date.now();
     if (!subjectActive) {
       setSubjectActive(true);
     }
 
-    // Reset activity timeout
     if (activityTimeoutRef.current) {
       clearTimeout(activityTimeoutRef.current);
     }
@@ -69,10 +58,7 @@ export function PresenceProvider({
   const handleVisibilityChange = useCallback(() => {
     const visible = document.visibilityState === 'visible';
     setTabVisible(visible);
-
-    if (visible) {
-      handleActivity();
-    }
+    if (visible) handleActivity();
   }, [handleActivity]);
 
   // Send heartbeat
@@ -86,30 +72,24 @@ export function PresenceProvider({
     }
   }, [tabVisible, subjectActive, metadata]);
 
-  // Request online subjects list
-  const refreshOnlineSubjects = useCallback(() => {
-    if (subscriptionRef.current) {
-      subscriptionRef.current.perform('get_online_subjects');
-    }
-  }, []);
-
   // Subscribe to presence channel
   useEffect(() => {
-    if (!roomId) return;
-
     const consumer = getConsumer();
 
     subscriptionRef.current = consumer.subscriptions.create(
       {
         channel: config.channelName,
-        room_id: roomId,
         metadata,
       },
       {
         connected() {
           setConnected(true);
+          // Get session_id from cable config if available
+          const cableConfig = getCableConfig();
+          if (cableConfig.sessionId) {
+            setSessionId(cableConfig.sessionId);
+          }
           onConnected?.();
-          this.perform('get_online_subjects');
         },
 
         disconnected() {
@@ -117,40 +97,14 @@ export function PresenceProvider({
           onDisconnected?.();
         },
 
-        received(data) {
-          switch (data.type) {
-            case 'online_subjects':
-              setOnlineSubjects(data.subjects || []);
-              break;
-
-            case 'presence_update':
-              if (data.event === 'joined') {
-                setOnlineSubjects((prev) => {
-                  const exists = prev.some((s) => s.session_id === data.session_id);
-                  if (exists) return prev;
-                  return [...prev, {
-                    session_id: data.session_id,
-                    subject_id: data.subject_id,
-                    subject: data.subject,
-                  }];
-                });
-                onSubjectJoined?.(data);
-              } else if (data.event === 'left') {
-                setOnlineSubjects((prev) =>
-                  prev.filter((s) => s.session_id !== data.session_id)
-                );
-                onSubjectLeft?.(data);
-              }
-              break;
-
-            case 'broadcast':
-              onMessage?.(data);
-              break;
-
-            default:
-              // Handle other message types
-              onMessage?.(data);
+        received(message) {
+          // Check if this message is targeted to a specific session
+          if (message._target_session && message._target_session !== sessionId) {
+            return; // Not for this session
           }
+
+          // Route to registered handler
+          handleMessage(message);
         },
       }
     );
@@ -161,7 +115,7 @@ export function PresenceProvider({
         subscriptionRef.current = null;
       }
     };
-  }, [roomId, config.channelName]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [config.channelName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Set up heartbeat interval
   useEffect(() => {
@@ -183,7 +137,6 @@ export function PresenceProvider({
     const events = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
     events.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
 
-    // Start activity timeout
     activityTimeoutRef.current = setTimeout(() => {
       setSubjectActive(false);
     }, config.activityTimeout);
@@ -209,11 +162,9 @@ export function PresenceProvider({
 
   const value = {
     connected,
-    roomId,
-    onlineSubjects,
+    sessionId,
     tabVisible,
     subjectActive,
-    refreshOnlineSubjects,
     sendHeartbeat,
   };
 

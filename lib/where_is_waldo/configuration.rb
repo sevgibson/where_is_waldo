@@ -7,18 +7,16 @@ module WhereIsWaldo
     attr_accessor :table_name        # defaults to 'presences'
     attr_accessor :redis_client      # custom Redis instance (optional)
 
-    # Column names - fully configurable, no assumptions about your schema
+    # Column names - fully configurable
     attr_accessor :session_column    # unique identifier per connection/tab (e.g., :session_id, :jti)
-    attr_accessor :subject_column    # who is present (e.g., :user_id, :account_id, :device_id)
-    attr_accessor :room_column       # where they are (e.g., :room_id, :channel_id, :organization_id)
+    attr_accessor :subject_column    # who is present (e.g., :user_id, :member_id, :student_id)
 
-    # Optional: subject model for eager loading (e.g., 'User', 'Account')
-    # Set to nil to disable association/eager loading
+    # Subject model (e.g., 'User', 'Member', 'Student')
+    # Required for scope-based broadcasting and queries
     attr_accessor :subject_class
 
-    # Optional: subject data method - proc that returns hash of subject info
+    # Optional: proc that returns hash of subject info for presence data
     # Called with the subject record to build presence hash
-    # Default returns { id: subject.id } if subject responds to :id
     attr_accessor :subject_data_proc
 
     # Timing
@@ -35,12 +33,11 @@ module WhereIsWaldo
       @table_name = "presences"
       @redis_client = nil
 
-      # Column defaults - generic names
+      # Column defaults
       @session_column = :session_id
       @subject_column = :subject_id
-      @room_column = :room_id
 
-      # Association defaults
+      # Subject model (required)
       @subject_class = nil
       @subject_data_proc = nil
 
