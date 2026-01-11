@@ -16,6 +16,10 @@ AllCops:
     - 'spec/dummy/tmp/**/*'
     - 'spec/dummy/log/**/*'
 
+# Disable Capybara cops - we don't use Capybara
+Capybara:
+  Enabled: false
+
 # Gemspec - allow dev dependencies in gemspec for gems
 Gemspec/DevelopmentDependencies:
   Enabled: false
