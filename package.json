@@ -2,9 +2,8 @@
   "name": "@sevgibson/where-is-waldo",
   "version": "0.0.1",
   "description": "Real-time presence tracking for ActionCable with React hooks",
-  "main": "dist/index.js",
-  "module": "dist/index.esm.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.js",
+  "module": "src/index.js",
   "files": [
     "dist",
     "src"
