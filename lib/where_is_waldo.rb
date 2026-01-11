@@ -55,17 +55,11 @@ module WhereIsWaldo
       PresenceService.all_online_ids(timeout: timeout)
     end
 
-    def subject_online?(subject_id)
-      PresenceService.subject_online?(subject_id)
-    end
+    delegate :subject_online?, to: :PresenceService
 
-    def sessions_for_subject(subject_id)
-      PresenceService.sessions_for_subject(subject_id)
-    end
+    delegate :sessions_for_subject, to: :PresenceService
 
-    def session_status(session_id)
-      PresenceService.session_status(session_id)
-    end
+    delegate :session_status, to: :PresenceService
 
     def cleanup(timeout: nil)
       PresenceService.cleanup(timeout: timeout)

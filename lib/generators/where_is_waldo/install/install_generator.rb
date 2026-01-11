@@ -11,13 +11,13 @@ module WhereIsWaldo
       source_root File.expand_path("templates", __dir__)
 
       class_option :session_column, type: :string, default: "session_id",
-                   desc: "Column name for session identifier"
+                                    desc: "Column name for session identifier"
       class_option :subject_column, type: :string, default: "subject_id",
-                   desc: "Column name for subject (user/member/etc) identifier"
+                                    desc: "Column name for subject (user/member/etc) identifier"
       class_option :table_name, type: :string, default: "presences",
-                   desc: "Table name for presences"
+                                desc: "Table name for presences"
       class_option :subject_table, type: :string, default: nil,
-                   desc: "Subject table for foreign key (e.g., 'users', 'members')"
+                                   desc: "Subject table for foreign key (e.g., 'users', 'members')"
 
       def self.next_migration_number(_path)
         Time.now.utc.strftime("%Y%m%d%H%M%S")

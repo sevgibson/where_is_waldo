@@ -186,9 +186,9 @@ module WhereIsWaldo
         {
           session_id: data["session_id"],
           subject_id: data["subject_id"],
-          connected_at: Time.at(data["connected_at"]),
-          last_heartbeat: Time.at(data["last_heartbeat"]),
-          last_activity: data["last_activity"] ? Time.at(data["last_activity"]) : nil,
+          connected_at: Time.zone.at(data["connected_at"]),
+          last_heartbeat: Time.zone.at(data["last_heartbeat"]),
+          last_activity: data["last_activity"] ? Time.zone.at(data["last_activity"]) : nil,
           tab_visible: data["tab_visible"],
           subject_active: data["subject_active"],
           metadata: data["metadata"] || {},

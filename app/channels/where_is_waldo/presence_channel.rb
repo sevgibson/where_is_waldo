@@ -12,12 +12,14 @@ module WhereIsWaldo
       WhereIsWaldo.disconnect(session_id: waldo_session_id)
     end
 
-    def heartbeat(data = {})
+    def heartbeat(data)
+      data = data.with_indifferent_access
+
       WhereIsWaldo.heartbeat(
         session_id: waldo_session_id,
-        tab_visible: data["tab_visible"] != false,
-        subject_active: data["subject_active"] != false,
-        metadata: data["metadata"] || {}
+        tab_visible: data[:tab_visible] != false,
+        subject_active: data[:subject_active] != false,
+        metadata: data[:metadata] || {}
       )
     end
 

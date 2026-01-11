@@ -13,7 +13,13 @@
     "build": "rollup -c",
     "lint": "eslint src --ext .js,.jsx",
     "lint:fix": "eslint src --ext .js,.jsx --fix",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "server": "cd spec/dummy && RAILS_ENV=development bundle exec puma -p 3001",
+    "server:setup": "cd spec/dummy && RAILS_ENV=development bundle exec rake db:create db:migrate",
+    "test:e2e": "start-server-and-test server http://localhost:3001 cypress:run",
+    "test:e2e:open": "start-server-and-test server http://localhost:3001 cypress:open"
   },
   "peerDependencies": {
     "@rails/actioncable": "^7.0.0 || ^8.0.0",
@@ -26,10 +32,12 @@
     "@rollup/plugin-babel": "^6.0.0",
     "@rollup/plugin-commonjs": "^25.0.0",
     "@rollup/plugin-node-resolve": "^15.0.0",
+    "cypress": "^13.0.0",
     "eslint": "^8.50.0",
     "eslint-plugin-react": "^7.33.0",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "rollup": "^4.0.0"
+    "rollup": "^4.0.0",
+    "start-server-and-test": "^2.0.0"
   },
   "repository": {
     "type": "git",

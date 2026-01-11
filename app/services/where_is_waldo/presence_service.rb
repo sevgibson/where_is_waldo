@@ -70,16 +70,12 @@ module WhereIsWaldo
       # Get all sessions for a subject
       # @param subject_id [Integer/String] Subject identifier
       # @return [Array<Hash>] Presence records
-      def sessions_for_subject(subject_id)
-        adapter.sessions_for_subject(subject_id)
-      end
+      delegate :sessions_for_subject, to: :adapter
 
       # Get status of a specific session
       # @param session_id [String] Session identifier
       # @return [Hash, nil] Presence record or nil
-      def session_status(session_id)
-        adapter.session_status(session_id)
-      end
+      delegate :session_status, to: :adapter
 
       # Check if a subject is online
       # @param subject_id [Integer/String] Subject identifier

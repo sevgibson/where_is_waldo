@@ -1,0 +1,31 @@
+<h1>WhereIsWaldo Test</h1>
+
+<div id="presence-status" class="disconnected" data-testid="presence-status">
+  <strong>Status:</strong> <span id="connection-status" data-testid="connection-status">Connecting...</span>
+</div>
+
+<div>
+  <strong>User:</strong> <%= @current_user.name %> (ID: <%= @current_user.id %>)
+</div>
+
+<div>
+  <strong>Session:</strong> <span id="session-id" data-testid="session-id"><%= @session_id %></span>
+</div>
+
+<div id="presence-data" style="margin-top: 20px;">
+  <strong>Presence State:</strong>
+  <ul>
+    <li>Tab Visible: <span id="tab-visible" data-testid="tab-visible">-</span></li>
+    <li>User Active: <span id="user-active" data-testid="user-active">-</span></li>
+    <li>Connected: <span id="connected" data-testid="connected">-</span></li>
+  </ul>
+</div>
+
+<div id="online-users-container" style="margin-top: 20px;">
+  <strong>Online Users:</strong>
+  <ul id="online-users" class="online-users" data-testid="online-users">
+    <li>Loading...</li>
+  </ul>
+</div>
+
+<div id="react-root"></div>

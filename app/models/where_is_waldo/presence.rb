@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module WhereIsWaldo
-  class Presence < ActiveRecord::Base
+  class Presence < ApplicationRecord
     self.table_name = -> { WhereIsWaldo.config.table_name }
 
     class << self
@@ -15,10 +15,12 @@ module WhereIsWaldo
         return unless subject_class
 
         subject_col = WhereIsWaldo.config.subject_column
+        # rubocop:disable Rails/InverseOf -- dynamic association, inverse not applicable
         belongs_to :subject,
                    class_name: subject_class.name,
                    foreign_key: subject_col,
                    optional: true
+        # rubocop:enable Rails/InverseOf
       end
 
       # Dynamic column accessors
@@ -32,16 +34,16 @@ module WhereIsWaldo
     end
 
     # Scopes
-    scope :online, ->(timeout: nil) {
+    scope :online, lambda { |timeout: nil|
       threshold = (timeout || WhereIsWaldo.config.timeout).seconds.ago
       where("last_heartbeat > ?", threshold)
     }
 
-    scope :for_subject, ->(subject_id) {
+    scope :for_subject, lambda { |subject_id|
       where(WhereIsWaldo.config.subject_column => subject_id)
     }
 
-    scope :for_subjects, ->(subject_ids) {
+    scope :for_subjects, lambda { |subject_ids|
       where(WhereIsWaldo.config.subject_column => subject_ids)
     }
 

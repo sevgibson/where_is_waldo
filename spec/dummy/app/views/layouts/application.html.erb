@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WhereIsWaldo Test App</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+      }
+      #presence-status {
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+      .connected { background: #d4edda; color: #155724; }
+      .disconnected { background: #f8d7da; color: #721c24; }
+      .online-users {
+        list-style: none;
+        padding: 0;
+      }
+      .online-users li {
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <%= yield %>
+    <%= action_cable_meta_tag %>
+    <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@rails/actioncable@7.0.0/app/assets/javascripts/actioncable.js"></script>
+    <script>
+      window.appData = {
+        userId: <%= @current_user&.id || 'null' %>,
+        sessionId: '<%= @session_id %>',
+        cableUrl: '/cable'
+      };
+    </script>
+    <%= javascript_include_tag "application", nonce: true, defer: true %>
+  </body>
+</html>
