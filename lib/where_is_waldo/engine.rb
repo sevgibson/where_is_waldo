@@ -9,11 +9,9 @@ module WhereIsWaldo
     config.autoload_paths << File.expand_path("../../app/jobs", __dir__)
     config.autoload_paths << File.expand_path("../../app/models", __dir__)
 
-    initializer "where_is_waldo.configure_presence_model" do
-      ActiveSupport.on_load(:active_record) do
-        # Configure the Presence model associations when ActiveRecord is ready
-        WhereIsWaldo::Presence.configure_associations! if WhereIsWaldo::Presence.respond_to?(:configure_associations!)
-      end
+    # Configure Presence model associations after all code is loaded
+    config.after_initialize do
+      WhereIsWaldo::Presence.configure_associations! if WhereIsWaldo::Presence.respond_to?(:configure_associations!)
     end
   end
 end
