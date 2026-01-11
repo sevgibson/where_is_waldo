@@ -133,7 +133,7 @@ module WhereIsWaldo
       end
 
       def key_prefix
-        "where_is_waldo"
+        config.redis_prefix || "where_is_waldo"
       end
 
       def session_key(session_id)

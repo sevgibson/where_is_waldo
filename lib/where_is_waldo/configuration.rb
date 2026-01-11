@@ -6,7 +6,8 @@ module WhereIsWaldo
     # :adapter - :database or :redis
     # :table_name - defaults to 'presences'
     # :redis_client - custom Redis instance (optional)
-    attr_accessor :adapter, :table_name, :redis_client
+    # :redis_prefix - key prefix for Redis (for multi-app setups)
+    attr_accessor :adapter, :table_name, :redis_client, :redis_prefix
 
     # Column names - fully configurable
     # :session_column - unique identifier per connection/tab (e.g., :session_id, :jti)
@@ -36,6 +37,7 @@ module WhereIsWaldo
       @adapter = :database
       @table_name = "presences"
       @redis_client = nil
+      @redis_prefix = "where_is_waldo"
 
       # Column defaults
       @session_column = :session_id
