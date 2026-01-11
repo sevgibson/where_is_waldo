@@ -63,7 +63,7 @@ module WhereIsWaldo
     def subject_class_constant
       return nil if subject_class.blank?
 
-      subject_class.is_a?(String) ? subject_class.constantize : subject_class
+      subject_class.is_a?(String) ? subject_class.safe_constantize : subject_class
     end
 
     # Build subject data hash from a subject record
