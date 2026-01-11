@@ -23,7 +23,7 @@ module WhereIsWaldo
         template "initializer.rb.tt", "config/initializers/where_is_waldo.rb"
       end
 
-      def create_migration
+      def generate_migration
         migration_template "migration.rb.tt", "db/migrate/create_presences.rb"
       end
 
