@@ -4,12 +4,12 @@ require "json"
 
 namespace :version do
   desc "Show current version"
-  task show: :environment do
+  task :show do
     puts File.read("VERSION").strip
   end
 
   desc "Bump version (usage: rake version:bump[0.0.2])"
-  task :bump, [:new_version] => :environment do |_t, args|
+  task :bump, [:new_version] do |_t, args|
     new_version = args[:new_version]
     abort "Usage: rake version:bump[0.0.2]" unless new_version
 
@@ -28,7 +28,7 @@ namespace :version do
   end
 
   desc "Sync package.json version from VERSION file"
-  task sync: :environment do
+  task :sync do
     version = File.read("VERSION").strip
     pkg = JSON.parse(File.read("package.json"))
     pkg["version"] = version
