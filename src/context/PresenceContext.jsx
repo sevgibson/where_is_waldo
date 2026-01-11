@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getConsumer, handleMessage, getCableConfig } from '../cable';
 
 const PresenceContext = createContext(null);
@@ -10,6 +10,15 @@ const DEFAULT_CONFIG = {
   trackActivity: true,
   trackVisibility: true,
 };
+
+/**
+ * Get merged config from defaults, cable config, and overrides
+ */
+function getMergedConfig(configOverrides) {
+  const cableConfig = getCableConfig();
+  const presenceConfig = cableConfig.presence || {};
+  return { ...DEFAULT_CONFIG, ...presenceConfig, ...configOverrides };
+}
 
 /**
  * PresenceProvider - Provides real-time presence tracking and message handling
@@ -28,7 +37,7 @@ export function PresenceProvider({
   onConnected,
   onDisconnected,
 }) {
-  const config = { ...DEFAULT_CONFIG, ...configOverrides };
+  const config = useMemo(() => getMergedConfig(configOverrides), [configOverrides]);
 
   const [connected, setConnected] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
