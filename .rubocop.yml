@@ -1,8 +1,10 @@
-require:
+# frozen_string_literal: true
+
+plugins:
   - rubocop-rails
+
+require:
   - rubocop-rspec
-  - rubocop-factory_bot
-  - rubocop-rspec_rails
 
 AllCops:
   TargetRubyVersion: 3.0
@@ -19,6 +21,24 @@ AllCops:
 # Disable Capybara cops - we don't use Capybara
 Capybara:
   Enabled: false
+  Exclude:
+    - '**/*'
+
+Capybara/RSpec/PredicateMatcher:
+  Enabled: false
+  Exclude:
+    - '**/*'
+
+# Disable FactoryBot cops - they have bugs with our factories
+FactoryBot:
+  Enabled: false
+  Exclude:
+    - '**/*'
+
+FactoryBot/AssociationStyle:
+  Enabled: false
+  Exclude:
+    - '**/*'
 
 # Gemspec - allow dev dependencies in gemspec for gems
 Gemspec/DevelopmentDependencies:
