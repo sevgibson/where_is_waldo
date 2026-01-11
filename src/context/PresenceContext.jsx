@@ -83,7 +83,9 @@ export function PresenceProvider({
 
   // Subscribe to presence channel
   useEffect(() => {
+    console.log('[WhereIsWaldo] Setting up subscription, channel:', config.channelName);
     const consumer = getConsumer();
+    console.log('[WhereIsWaldo] Got consumer:', !!consumer);
 
     subscriptionRef.current = consumer.subscriptions.create(
       {
@@ -92,6 +94,7 @@ export function PresenceProvider({
       },
       {
         connected() {
+          console.log('[WhereIsWaldo] Subscription connected callback fired');
           setConnected(true);
           // Get session_id from cable config if available
           const cableConfig = getCableConfig();
@@ -102,8 +105,13 @@ export function PresenceProvider({
         },
 
         disconnected() {
+          console.log('[WhereIsWaldo] Subscription disconnected callback fired');
           setConnected(false);
           onDisconnected?.();
+        },
+
+        rejected() {
+          console.log('[WhereIsWaldo] Subscription REJECTED');
         },
 
         received(message) {
