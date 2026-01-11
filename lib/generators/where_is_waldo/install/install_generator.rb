@@ -1,82 +1,73 @@
 # frozen_string_literal: true
 
 require "rails/generators"
-require "rails/generators/migration"
+require "rails/generators/active_record"
 
 module WhereIsWaldo
   module Generators
     class InstallGenerator < Rails::Generators::Base
-      include Rails::Generators::Migration
+      include ActiveRecord::Generators::Migration
 
       source_root File.expand_path("templates", __dir__)
 
-      class_option :session_column, type: :string, default: "session_id",
-                                    desc: "Column name for session identifier"
-      class_option :subject_column, type: :string, default: "subject_id",
-                                    desc: "Column name for subject (user/member/etc) identifier"
-      class_option :table_name, type: :string, default: "presences",
-                                desc: "Table name for presences"
-      class_option :subject_table, type: :string, default: nil,
-                                   desc: "Subject table for foreign key (e.g., 'users', 'members')"
+      class_option :auth_method, type: :string, default: "jwt",
+        desc: "Authentication method (jwt, devise, custom)"
+      class_option :subject_class, type: :string, default: "User",
+        desc: "The model class being tracked (User, Member, etc.)"
+      class_option :subject_column, type: :string, default: "user_id",
+        desc: "Foreign key column name for the subject"
+      class_option :session_column, type: :string, default: "jti",
+        desc: "Column name for session identifier"
 
-      def self.next_migration_number(_path)
-        Time.now.utc.strftime("%Y%m%d%H%M%S")
+      def create_initializer
+        template "initializer.rb.tt", "config/initializers/where_is_waldo.rb"
       end
 
       def create_migration
-        migration_template "create_presences.rb.tt",
-                           "db/migrate/create_#{table_name}.rb"
+        migration_template "migration.rb.tt", "db/migrate/create_presences.rb"
       end
 
-      def create_initializer
-        template "initializer.rb.tt",
-                 "config/initializers/where_is_waldo.rb"
+      def create_channels
+        template "connection.rb.tt", "app/channels/application_cable/connection.rb"
+        template "channel.rb.tt", "app/channels/application_cable/channel.rb"
+        template "presence_channel.rb.tt", "app/channels/presence_channel.rb"
       end
 
-      def display_post_install_message
+      def show_post_install_message
         say ""
-        say "=" * 60
-        say "WhereIsWaldo has been installed!"
-        say "=" * 60
-        say ""
-        say "Your configuration:"
-        say "  Table:          #{table_name}"
-        say "  Session column: #{session_column}"
-        say "  Subject column: #{subject_column}"
+        say "WhereIsWaldo installed successfully!", :green
         say ""
         say "Next steps:"
+        say "  1. Review config/initializers/where_is_waldo.rb"
+        say "  2. Run: rails db:migrate"
+        say "  3. Configure your frontend PresenceProvider:"
         say ""
-        say "1. Review the initializer:"
-        say "   config/initializers/where_is_waldo.rb"
+        say "     <PresenceProvider config={{ channelName: 'PresenceChannel' }}>"
+        say "       <App />"
+        say "     </PresenceProvider>"
         say ""
-        say "2. Set your subject class in the initializer:"
-        say "   config.subject_class = 'User'  # or 'Member', 'Student', etc."
-        say ""
-        say "3. Run migrations:"
-        say "   rails db:migrate"
-        say ""
-        say "4. Add the React provider to your app:"
-        say "   import { PresenceProvider } from '@sevgibson/where-is-waldo';"
-        say ""
-        say "=" * 60
       end
 
       private
 
-      def table_name
-        options[:table_name]
+      def migration_version
+        "[#{ActiveRecord::VERSION::STRING.to_f}]"
       end
 
-      def session_column
-        options[:session_column]
+      def subject_class
+        options[:subject_class]
       end
 
       def subject_column
         options[:subject_column]
       end
 
-      def subject_table
-        options[:subject_table]
+      def session_column
+        options[:session_column]
+      end
+
+      def auth_method
+        options[:auth_method]
       end
     end
   end

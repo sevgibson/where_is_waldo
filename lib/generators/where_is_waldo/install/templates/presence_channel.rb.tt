@@ -1,0 +1,37 @@
+# frozen_string_literal: true
+
+class PresenceChannel < ApplicationCable::Channel
+  def subscribed
+    stream_from subject_stream
+    register_presence
+  end
+
+  def unsubscribed
+    WhereIsWaldo.disconnect(session_id: connection.session_id)
+  end
+
+  def heartbeat(data)
+    data = data.with_indifferent_access
+
+    WhereIsWaldo.heartbeat(
+      session_id: connection.session_id,
+      tab_visible: data[:tab_visible] != false,
+      subject_active: data[:subject_active] != false,
+      metadata: data[:metadata] || {}
+    )
+  end
+
+  private
+
+  def register_presence
+    WhereIsWaldo.connect(
+      session_id: connection.session_id,
+      subject_id: connection.current_<%= subject_column.sub(/_id$/, '') %>.id,
+      metadata: params[:metadata] || {}
+    )
+  end
+
+  def subject_stream
+    "where_is_waldo:subject:#{connection.current_<%= subject_column.sub(/_id$/, '') %>.id}"
+  end
+end

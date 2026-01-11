@@ -1,0 +1,20 @@
+# frozen_string_literal: true
+
+class CreatePresences < ActiveRecord::Migration<%= migration_version %>
+  def change
+    create_table :presences do |t|
+      t.string :<%= session_column %>, null: false
+      t.references :<%= subject_column.sub(/_id$/, '') %>, null: false, foreign_key: true
+      t.datetime :connected_at, null: false
+      t.datetime :last_heartbeat, null: false
+      t.datetime :last_activity
+      t.boolean :tab_visible, default: true, null: false
+      t.boolean :subject_active, default: true, null: false
+      t.json :metadata
+      t.timestamps
+    end
+
+    add_index :presences, :<%= session_column %>, unique: true
+    add_index :presences, :last_heartbeat
+  end
+end
