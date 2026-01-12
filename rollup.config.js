@@ -19,11 +19,12 @@ export default {
   ],
   external: ['react', '@rails/actioncable'],
   plugins: [
-    resolve(),
+    resolve({ extensions: ['.js', '.jsx'] }),
     commonjs(),
     babel({
       babelHelpers: 'bundled',
       exclude: 'node_modules/**',
+      extensions: ['.js', '.jsx'],
       presets: ['@babel/preset-env', '@babel/preset-react'],
     }),
   ],
