@@ -87,7 +87,20 @@ export function PresenceProvider({
     const consumer = getConsumer();
     console.log('[WhereIsWaldo] Got consumer:', !!consumer);
     console.log('[WhereIsWaldo] Consumer connection:', consumer.connection);
-    console.log('[WhereIsWaldo] Connection state:', consumer.connection?.getState?.());
+    console.log('[WhereIsWaldo] Connection disconnected:', consumer.connection?.disconnected);
+
+    // Monitor connection state
+    const originalOpen = consumer.connection.open.bind(consumer.connection);
+    consumer.connection.open = function() {
+      console.log('[WhereIsWaldo] Connection.open() called');
+      return originalOpen();
+    };
+
+    // Force open the connection if not already open
+    if (consumer.connection.disconnected) {
+      console.log('[WhereIsWaldo] Connection is disconnected, calling open()');
+      consumer.connection.open();
+    }
 
     subscriptionRef.current = consumer.subscriptions.create(
       {
