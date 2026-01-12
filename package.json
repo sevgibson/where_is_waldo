@@ -1,6 +1,6 @@
 {
   "name": "@sevgibson/where-is-waldo",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Real-time presence tracking for ActionCable with React hooks",
   "main": "src/index.js",
   "module": "src/index.js",
