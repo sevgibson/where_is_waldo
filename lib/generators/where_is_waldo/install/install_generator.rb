@@ -10,6 +10,8 @@ module WhereIsWaldo
 
       source_root File.expand_path("templates", __dir__)
 
+      class_option :adapter, type: :string, default: "database",
+        desc: "Storage adapter (database or redis)"
       class_option :auth_method, type: :string, default: "jwt",
         desc: "Authentication method (jwt, devise, custom)"
       class_option :subject_class, type: :string, default: "User",
@@ -24,6 +26,8 @@ module WhereIsWaldo
       end
 
       def generate_migration
+        return if adapter == "redis"
+
         migration_template "migration.rb.tt", "db/migrate/create_presences.rb"
       end
 
@@ -39,7 +43,11 @@ module WhereIsWaldo
         say ""
         say "Next steps:"
         say "  1. Review config/initializers/where_is_waldo.rb"
-        say "  2. Run: rails db:migrate"
+        if adapter == "redis"
+          say "  2. Ensure REDIS_URL is configured"
+        else
+          say "  2. Run: rails db:migrate"
+        end
         say "  3. Configure your frontend PresenceProvider:"
         say ""
         say "     <PresenceProvider config={{ channelName: 'PresenceChannel' }}>"
@@ -68,6 +76,10 @@ module WhereIsWaldo
 
       def auth_method
         options[:auth_method]
+      end
+
+      def adapter
+        options[:adapter]
       end
     end
   end

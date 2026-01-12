@@ -2,10 +2,15 @@
 
 WhereIsWaldo.configure do |config|
   # Storage adapter: :database or :redis
-  config.adapter = :database
-
+  config.adapter = :<%= adapter %>
+<% if adapter == "redis" %>
+  # Redis configuration
+  # config.redis_client = Redis.new(url: ENV["REDIS_URL"])
+  # config.redis_prefix = "where_is_waldo"
+<% else %>
   # Table name for presence records
   config.table_name = "presences"
+<% end %>
 
   # Column names
   config.session_column = :<%= session_column %>
