@@ -86,6 +86,8 @@ export function PresenceProvider({
     console.log('[WhereIsWaldo] Setting up subscription, channel:', config.channelName);
     const consumer = getConsumer();
     console.log('[WhereIsWaldo] Got consumer:', !!consumer);
+    console.log('[WhereIsWaldo] Consumer connection:', consumer.connection);
+    console.log('[WhereIsWaldo] Connection state:', consumer.connection?.getState?.());
 
     subscriptionRef.current = consumer.subscriptions.create(
       {
@@ -114,6 +116,10 @@ export function PresenceProvider({
           console.log('[WhereIsWaldo] Subscription REJECTED');
         },
 
+        initialized() {
+          console.log('[WhereIsWaldo] Subscription initialized');
+        },
+
         received(message) {
           // Check if this message is targeted to a specific session
           if (message._target_session && message._target_session !== sessionId) {
@@ -125,6 +131,8 @@ export function PresenceProvider({
         },
       }
     );
+
+    console.log('[WhereIsWaldo] Subscription created:', !!subscriptionRef.current);
 
     return () => {
       if (subscriptionRef.current) {
