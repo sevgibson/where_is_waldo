@@ -89,12 +89,24 @@ export function PresenceProvider({
     console.log('[WhereIsWaldo] Consumer connection:', consumer.connection);
     console.log('[WhereIsWaldo] Connection disconnected:', consumer.connection?.disconnected);
 
-    // Monitor connection state
-    const originalOpen = consumer.connection.open.bind(consumer.connection);
-    consumer.connection.open = function() {
-      console.log('[WhereIsWaldo] Connection.open() called');
-      return originalOpen();
-    };
+    // Monitor WebSocket events
+    const monitor = consumer.connection.monitor;
+    console.log('[WhereIsWaldo] Connection monitor:', monitor);
+    console.log('[WhereIsWaldo] Monitor polling:', monitor?.isPolling?.());
+
+    // Listen for connection events
+    consumer.connection.events.add('open', () => {
+      console.log('[WhereIsWaldo] WebSocket OPEN event');
+    });
+    consumer.connection.events.add('close', (event) => {
+      console.log('[WhereIsWaldo] WebSocket CLOSE event', event);
+    });
+    consumer.connection.events.add('error', (event) => {
+      console.log('[WhereIsWaldo] WebSocket ERROR event', event);
+    });
+    consumer.connection.events.add('message', (event) => {
+      console.log('[WhereIsWaldo] WebSocket MESSAGE received');
+    });
 
     // Force open the connection if not already open
     if (consumer.connection.disconnected) {
