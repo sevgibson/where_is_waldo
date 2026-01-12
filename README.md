@@ -22,8 +22,12 @@ gem 'where_is_waldo', github: 'sevgibson/where_is_waldo'
 ```
 
 ```bash
-rails generate where_is_waldo:install --subject_column=user_id --subject_table=users
+# Database adapter (default)
+rails generate where_is_waldo:install --subject_column=user_id
 rails db:migrate
+
+# Redis adapter (no migration needed)
+rails generate where_is_waldo:install --adapter=redis --subject_column=user_id
 ```
 
 ```bash
@@ -50,6 +54,9 @@ import { configureCable, PresenceProvider } from '@sevgibson/where-is-waldo';
 configureCable({
   url: '/cable',
   getToken: () => localStorage.getItem('token'),
+  presence: {
+    debug: true,  // Enable console logging for troubleshooting
+  },
   handlers: {
     notification: (data) => showToast(data.message),
     force_logout: () => logout(),

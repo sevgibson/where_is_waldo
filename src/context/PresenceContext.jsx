@@ -9,6 +9,7 @@ const DEFAULT_CONFIG = {
   activityTimeout: 30000,
   trackActivity: true,
   trackVisibility: true,
+  debug: false,
 };
 
 /**
@@ -38,6 +39,10 @@ export function PresenceProvider({
   onDisconnected,
 }) {
   const config = useMemo(() => getMergedConfig(configOverrides), [configOverrides]);
+  const debug = config.debug;
+  const log = useCallback((...args) => {
+    if (debug) console.log('[WhereIsWaldo]', ...args);
+  }, [debug]);
 
   const [connected, setConnected] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
@@ -83,47 +88,12 @@ export function PresenceProvider({
 
   // Subscribe to presence channel
   useEffect(() => {
-    console.log('[WhereIsWaldo] Setting up subscription, channel:', config.channelName);
+    log('Setting up subscription, channel:', config.channelName);
     const consumer = getConsumer();
-    console.log('[WhereIsWaldo] Got consumer:', !!consumer);
-    console.log('[WhereIsWaldo] Consumer connection:', consumer.connection);
-    console.log('[WhereIsWaldo] Connection disconnected:', consumer.connection?.disconnected);
-
-    // Monitor WebSocket events by wrapping the webSocket when it's created
-    const originalOpen = consumer.connection.open.bind(consumer.connection);
-    consumer.connection.open = function() {
-      console.log('[WhereIsWaldo] Connection.open() called');
-      const result = originalOpen();
-
-      // Monitor the WebSocket after it's created
-      setTimeout(() => {
-        const ws = consumer.connection.webSocket;
-        console.log('[WhereIsWaldo] WebSocket after open:', ws?.readyState);
-        if (ws) {
-          const origOnOpen = ws.onopen;
-          ws.onopen = (e) => {
-            console.log('[WhereIsWaldo] WebSocket OPENED');
-            origOnOpen?.call(ws, e);
-          };
-          const origOnClose = ws.onclose;
-          ws.onclose = (e) => {
-            console.log('[WhereIsWaldo] WebSocket CLOSED', e.code, e.reason);
-            origOnClose?.call(ws, e);
-          };
-          const origOnError = ws.onerror;
-          ws.onerror = (e) => {
-            console.log('[WhereIsWaldo] WebSocket ERROR', e);
-            origOnError?.call(ws, e);
-          };
-        }
-      }, 100);
-
-      return result;
-    };
 
     // Force open the connection if not already open
     if (consumer.connection.disconnected) {
-      console.log('[WhereIsWaldo] Connection is disconnected, calling open()');
+      log('Connection is disconnected, calling open()');
       consumer.connection.open();
     }
 
@@ -134,7 +104,7 @@ export function PresenceProvider({
       },
       {
         connected() {
-          console.log('[WhereIsWaldo] Subscription connected callback fired');
+          log('Connected');
           setConnected(true);
           // Get session_id from cable config if available
           const cableConfig = getCableConfig();
@@ -145,17 +115,13 @@ export function PresenceProvider({
         },
 
         disconnected() {
-          console.log('[WhereIsWaldo] Subscription disconnected callback fired');
+          log('Disconnected');
           setConnected(false);
           onDisconnected?.();
         },
 
         rejected() {
-          console.log('[WhereIsWaldo] Subscription REJECTED');
-        },
-
-        initialized() {
-          console.log('[WhereIsWaldo] Subscription initialized');
+          log('Subscription rejected');
         },
 
         received(message) {
@@ -170,15 +136,13 @@ export function PresenceProvider({
       }
     );
 
-    console.log('[WhereIsWaldo] Subscription created:', !!subscriptionRef.current);
-
     return () => {
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
     };
-  }, [config.channelName]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [config.channelName, log]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Set up heartbeat interval
   useEffect(() => {
