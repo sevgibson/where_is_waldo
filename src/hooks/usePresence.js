@@ -35,6 +35,7 @@ export function usePresence(options = {}) {
   const subscriptionRef = useRef(null);
   const heartbeatIntervalRef = useRef(null);
   const activityTimeoutRef = useRef(null);
+  const lastActivityTimeRef = useRef(Date.now());
 
   // Refs to track latest values for callbacks (avoids stale closures)
   const stateRef = useRef({ tabVisible: true, windowFocused: document.hasFocus(), subjectActive: true });
@@ -44,6 +45,9 @@ export function usePresence(options = {}) {
   const handleActivity = useCallback(() => {
     const { subjectActive: wasActive, tabVisible: currentTabVisible, windowFocused: currentWindowFocused } = stateRef.current;
     const wasInactive = !wasActive;
+
+    // Always update the last activity timestamp
+    lastActivityTimeRef.current = Date.now();
 
     console.log('[Presence] handleActivity called, wasActive:', wasActive, 'wasInactive:', wasInactive);
 
@@ -55,6 +59,7 @@ export function usePresence(options = {}) {
         subscriptionRef.current.perform('heartbeat', {
           tab_visible: currentTabVisible && currentWindowFocused,
           subject_active: true,
+          last_activity_at: lastActivityTimeRef.current,
           metadata: config.metadata || {},
         });
       } else {
@@ -75,6 +80,7 @@ export function usePresence(options = {}) {
         subscriptionRef.current.perform('heartbeat', {
           tab_visible: document.visibilityState === 'visible' && document.hasFocus(),
           subject_active: false,
+          last_activity_at: lastActivityTimeRef.current,
           metadata: config.metadata || {},
         });
       }
@@ -158,6 +164,7 @@ export function usePresence(options = {}) {
       subscriptionRef.current.perform('heartbeat', {
         tab_visible: overrides.tab_visible ?? (tabVisible && windowFocused),
         subject_active: overrides.subject_active ?? subjectActive,
+        last_activity_at: lastActivityTimeRef.current,
         metadata: config.metadata || {},
       });
     }

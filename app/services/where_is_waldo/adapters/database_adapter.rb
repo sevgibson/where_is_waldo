@@ -37,7 +37,7 @@ module WhereIsWaldo
         false
       end
 
-      def heartbeat(session_id:, tab_visible: true, subject_active: true, metadata: {})
+      def heartbeat(session_id:, tab_visible: true, subject_active: true, last_activity_at: nil, metadata: {})
         now = Time.current
         updates = {
           last_heartbeat: now,
@@ -45,7 +45,8 @@ module WhereIsWaldo
           subject_active: subject_active,
           updated_at: now
         }
-        updates[:last_activity] = now if subject_active
+        # Convert JS timestamp (ms) to Ruby Time
+        updates[:last_activity] = Time.zone.at(last_activity_at / 1000.0) if last_activity_at
         updates[:metadata] = metadata if metadata.present?
 
         scope = Presence.where(session_column => session_id)

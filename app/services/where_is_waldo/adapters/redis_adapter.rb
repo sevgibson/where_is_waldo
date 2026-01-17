@@ -50,7 +50,7 @@ module WhereIsWaldo
         false
       end
 
-      def heartbeat(session_id:, tab_visible: true, subject_active: true, metadata: {})
+      def heartbeat(session_id:, tab_visible: true, subject_active: true, last_activity_at: nil, metadata: {})
         data = get_presence_data(session_id)
         return false unless data
 
@@ -58,7 +58,8 @@ module WhereIsWaldo
         data["last_heartbeat"] = now
         data["tab_visible"] = tab_visible
         data["subject_active"] = subject_active
-        data["last_activity"] = now if subject_active
+        # Convert JS timestamp (ms) to Unix seconds
+        data["last_activity"] = (last_activity_at / 1000.0).to_i if last_activity_at
         data["metadata"] = data["metadata"].merge(metadata) if metadata.present?
 
         redis.multi do |tx|

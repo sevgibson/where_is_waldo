@@ -19,6 +19,7 @@ module WhereIsWaldo
         session_id: waldo_session_id,
         tab_visible: data[:tab_visible] != false,
         subject_active: data[:subject_active] != false,
+        last_activity_at: data[:last_activity_at],
         metadata: data[:metadata] || {}
       )
     end
