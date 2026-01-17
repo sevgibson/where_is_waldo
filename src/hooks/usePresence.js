@@ -37,8 +37,18 @@ export function usePresence(options = {}) {
 
   // Track user activity
   const handleActivity = useCallback(() => {
-    if (!subjectActive) {
+    const wasInactive = !subjectActive;
+
+    if (wasInactive) {
       setSubjectActive(true);
+      // Send immediate heartbeat on transition from inactive to active
+      if (subscriptionRef.current) {
+        subscriptionRef.current.perform('heartbeat', {
+          tab_visible: tabVisible,
+          subject_active: true,
+          metadata: config.metadata || {},
+        });
+      }
     }
 
     if (activityTimeoutRef.current) {
@@ -47,22 +57,41 @@ export function usePresence(options = {}) {
 
     activityTimeoutRef.current = setTimeout(() => {
       setSubjectActive(false);
+      // Send immediate heartbeat on transition from active to inactive
+      if (subscriptionRef.current) {
+        subscriptionRef.current.perform('heartbeat', {
+          tab_visible: document.visibilityState === 'visible',
+          subject_active: false,
+          metadata: config.metadata || {},
+        });
+      }
     }, config.activityTimeout);
-  }, [subjectActive, config.activityTimeout]);
+  }, [subjectActive, tabVisible, config.activityTimeout, config.metadata]);
 
   // Track tab visibility
   const handleVisibilityChange = useCallback(() => {
     const visible = document.visibilityState === 'visible';
+    const wasVisible = tabVisible;
     setTabVisible(visible);
-    if (visible) handleActivity();
-  }, [handleActivity]);
 
-  // Send heartbeat
-  const sendHeartbeat = useCallback(() => {
+    // Send immediate heartbeat on any visibility change
+    if (visible !== wasVisible && subscriptionRef.current) {
+      subscriptionRef.current.perform('heartbeat', {
+        tab_visible: visible,
+        subject_active: visible ? true : subjectActive,
+        metadata: config.metadata || {},
+      });
+    }
+
+    if (visible) handleActivity();
+  }, [handleActivity, tabVisible, subjectActive, config.metadata]);
+
+  // Send heartbeat (with optional override values for immediate updates)
+  const sendHeartbeat = useCallback((overrides = {}) => {
     if (subscriptionRef.current) {
       subscriptionRef.current.perform('heartbeat', {
-        tab_visible: tabVisible,
-        subject_active: subjectActive,
+        tab_visible: overrides.tab_visible ?? tabVisible,
+        subject_active: overrides.subject_active ?? subjectActive,
         metadata: config.metadata || {},
       });
     }
