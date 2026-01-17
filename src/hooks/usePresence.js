@@ -36,16 +36,21 @@ export function usePresence(options = {}) {
   const heartbeatIntervalRef = useRef(null);
   const activityTimeoutRef = useRef(null);
 
+  // Refs to track latest values for callbacks (avoids stale closures)
+  const stateRef = useRef({ tabVisible: true, windowFocused: document.hasFocus(), subjectActive: true });
+  stateRef.current = { tabVisible, windowFocused, subjectActive };
+
   // Track user activity
   const handleActivity = useCallback(() => {
-    const wasInactive = !subjectActive;
+    const { subjectActive: wasActive, tabVisible: currentTabVisible, windowFocused: currentWindowFocused } = stateRef.current;
+    const wasInactive = !wasActive;
 
     if (wasInactive) {
       setSubjectActive(true);
       // Send immediate heartbeat on transition from inactive to active
       if (subscriptionRef.current) {
         subscriptionRef.current.perform('heartbeat', {
-          tab_visible: tabVisible && windowFocused,
+          tab_visible: currentTabVisible && currentWindowFocused,
           subject_active: true,
           metadata: config.metadata || {},
         });
@@ -67,56 +72,56 @@ export function usePresence(options = {}) {
         });
       }
     }, config.activityTimeout);
-  }, [subjectActive, tabVisible, windowFocused, config.activityTimeout, config.metadata]);
+  }, [config.activityTimeout, config.metadata]);
 
   // Track tab visibility
   const handleVisibilityChange = useCallback(() => {
+    const { tabVisible: wasVisible, windowFocused: currentWindowFocused, subjectActive: currentSubjectActive } = stateRef.current;
     const visible = document.visibilityState === 'visible';
-    const wasVisible = tabVisible;
     setTabVisible(visible);
 
     // Send immediate heartbeat on any visibility change
     if (visible !== wasVisible && subscriptionRef.current) {
       subscriptionRef.current.perform('heartbeat', {
-        tab_visible: visible && windowFocused,
-        subject_active: visible ? true : subjectActive,
+        tab_visible: visible && currentWindowFocused,
+        subject_active: visible ? true : currentSubjectActive,
         metadata: config.metadata || {},
       });
     }
 
     if (visible) handleActivity();
-  }, [handleActivity, tabVisible, windowFocused, subjectActive, config.metadata]);
+  }, [handleActivity, config.metadata]);
 
   // Track window focus/blur
   const handleWindowFocus = useCallback(() => {
-    const wasFocused = windowFocused;
+    const { windowFocused: wasFocused, tabVisible: currentTabVisible } = stateRef.current;
     setWindowFocused(true);
 
     // Send immediate heartbeat on focus gain
     if (!wasFocused && subscriptionRef.current) {
       subscriptionRef.current.perform('heartbeat', {
-        tab_visible: tabVisible && true,
+        tab_visible: currentTabVisible,
         subject_active: true,
         metadata: config.metadata || {},
       });
     }
 
     handleActivity();
-  }, [handleActivity, windowFocused, tabVisible, config.metadata]);
+  }, [handleActivity, config.metadata]);
 
   const handleWindowBlur = useCallback(() => {
-    const wasFocused = windowFocused;
+    const { windowFocused: wasFocused, subjectActive: currentSubjectActive } = stateRef.current;
     setWindowFocused(false);
 
     // Send immediate heartbeat on focus loss
     if (wasFocused && subscriptionRef.current) {
       subscriptionRef.current.perform('heartbeat', {
-        tab_visible: tabVisible && false,
-        subject_active: subjectActive,
+        tab_visible: false,
+        subject_active: currentSubjectActive,
         metadata: config.metadata || {},
       });
     }
-  }, [windowFocused, tabVisible, subjectActive, config.metadata]);
+  }, [config.metadata]);
 
   // Send heartbeat (with optional override values for immediate updates)
   const sendHeartbeat = useCallback((overrides = {}) => {
