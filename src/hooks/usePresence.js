@@ -28,6 +28,7 @@ export function usePresence(options = {}) {
 
   const [connected, setConnected] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
+  const [windowFocused, setWindowFocused] = useState(document.hasFocus());
   const [subjectActive, setSubjectActive] = useState(true);
   const [sessionId, setSessionId] = useState(null);
 
@@ -44,7 +45,7 @@ export function usePresence(options = {}) {
       // Send immediate heartbeat on transition from inactive to active
       if (subscriptionRef.current) {
         subscriptionRef.current.perform('heartbeat', {
-          tab_visible: tabVisible,
+          tab_visible: tabVisible && windowFocused,
           subject_active: true,
           metadata: config.metadata || {},
         });
@@ -60,13 +61,13 @@ export function usePresence(options = {}) {
       // Send immediate heartbeat on transition from active to inactive
       if (subscriptionRef.current) {
         subscriptionRef.current.perform('heartbeat', {
-          tab_visible: document.visibilityState === 'visible',
+          tab_visible: document.visibilityState === 'visible' && document.hasFocus(),
           subject_active: false,
           metadata: config.metadata || {},
         });
       }
     }, config.activityTimeout);
-  }, [subjectActive, tabVisible, config.activityTimeout, config.metadata]);
+  }, [subjectActive, tabVisible, windowFocused, config.activityTimeout, config.metadata]);
 
   // Track tab visibility
   const handleVisibilityChange = useCallback(() => {
@@ -77,25 +78,56 @@ export function usePresence(options = {}) {
     // Send immediate heartbeat on any visibility change
     if (visible !== wasVisible && subscriptionRef.current) {
       subscriptionRef.current.perform('heartbeat', {
-        tab_visible: visible,
+        tab_visible: visible && windowFocused,
         subject_active: visible ? true : subjectActive,
         metadata: config.metadata || {},
       });
     }
 
     if (visible) handleActivity();
-  }, [handleActivity, tabVisible, subjectActive, config.metadata]);
+  }, [handleActivity, tabVisible, windowFocused, subjectActive, config.metadata]);
+
+  // Track window focus/blur
+  const handleWindowFocus = useCallback(() => {
+    const wasFocused = windowFocused;
+    setWindowFocused(true);
+
+    // Send immediate heartbeat on focus gain
+    if (!wasFocused && subscriptionRef.current) {
+      subscriptionRef.current.perform('heartbeat', {
+        tab_visible: tabVisible && true,
+        subject_active: true,
+        metadata: config.metadata || {},
+      });
+    }
+
+    handleActivity();
+  }, [handleActivity, windowFocused, tabVisible, config.metadata]);
+
+  const handleWindowBlur = useCallback(() => {
+    const wasFocused = windowFocused;
+    setWindowFocused(false);
+
+    // Send immediate heartbeat on focus loss
+    if (wasFocused && subscriptionRef.current) {
+      subscriptionRef.current.perform('heartbeat', {
+        tab_visible: tabVisible && false,
+        subject_active: subjectActive,
+        metadata: config.metadata || {},
+      });
+    }
+  }, [windowFocused, tabVisible, subjectActive, config.metadata]);
 
   // Send heartbeat (with optional override values for immediate updates)
   const sendHeartbeat = useCallback((overrides = {}) => {
     if (subscriptionRef.current) {
       subscriptionRef.current.perform('heartbeat', {
-        tab_visible: overrides.tab_visible ?? tabVisible,
+        tab_visible: overrides.tab_visible ?? (tabVisible && windowFocused),
         subject_active: overrides.subject_active ?? subjectActive,
         metadata: config.metadata || {},
       });
     }
-  }, [tabVisible, subjectActive, config.metadata]);
+  }, [tabVisible, windowFocused, subjectActive, config.metadata]);
 
   // Subscribe to channel
   useEffect(() => {
@@ -173,21 +205,26 @@ export function usePresence(options = {}) {
     };
   }, [handleActivity, config.trackActivity, config.activityTimeout]);
 
-  // Visibility tracking
+  // Visibility tracking (tab visibility + window focus)
   useEffect(() => {
     if (!config.trackVisibility) return;
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('blur', handleWindowBlur);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('blur', handleWindowBlur);
     };
-  }, [handleVisibilityChange, config.trackVisibility]);
+  }, [handleVisibilityChange, handleWindowFocus, handleWindowBlur, config.trackVisibility]);
 
   return {
     connected,
     sessionId,
     tabVisible,
+    windowFocused,
     subjectActive,
     sendHeartbeat,
   };
