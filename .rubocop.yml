@@ -130,3 +130,8 @@ RSpec/SpecFilePathFormat:
 Rails/SkipsModelValidations:
   Exclude:
     - 'spec/**/*'
+
+# Rake tasks in gem don't need Rails environment
+Rails/RakeEnvironment:
+  Exclude:
+    - 'Rakefile'

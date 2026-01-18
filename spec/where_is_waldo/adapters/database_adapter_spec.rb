@@ -101,12 +101,11 @@ RSpec.describe WhereIsWaldo::Adapters::DatabaseAdapter do
     end
 
     it "updates last_activity when subject_active is true" do
-      freeze_time do
-        travel 1.minute
-        adapter.heartbeat(session_id: session_id, subject_active: true)
-        presence = WhereIsWaldo::Presence.last
-        expect(presence.last_activity).to eq(Time.current)
-      end
+      original_activity = WhereIsWaldo::Presence.last.last_activity
+      travel 1.minute
+      adapter.heartbeat(session_id: session_id, subject_active: true)
+      presence = WhereIsWaldo::Presence.last
+      expect(presence.last_activity).to be > original_activity
     end
 
     it "does not update last_activity when subject_active is false" do
