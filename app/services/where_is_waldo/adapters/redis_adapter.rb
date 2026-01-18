@@ -58,8 +58,12 @@ module WhereIsWaldo
         data["last_heartbeat"] = now
         data["tab_visible"] = tab_visible
         data["subject_active"] = subject_active
-        # Convert JS timestamp (ms) to Unix seconds
-        data["last_activity"] = (last_activity_at / 1000.0).to_i if last_activity_at
+        # Update last_activity: use JS timestamp if provided, otherwise use current time when active
+        if last_activity_at
+          data["last_activity"] = (last_activity_at / 1000.0).to_i
+        elsif subject_active
+          data["last_activity"] = now
+        end
         data["metadata"] = data["metadata"].merge(metadata) if metadata.present?
 
         redis.multi do |tx|

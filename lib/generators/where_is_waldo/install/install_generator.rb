@@ -11,15 +11,15 @@ module WhereIsWaldo
       source_root File.expand_path("templates", __dir__)
 
       class_option :adapter, type: :string, default: "database",
-        desc: "Storage adapter (database or redis)"
+                             desc: "Storage adapter (database or redis)"
       class_option :auth_method, type: :string, default: "jwt",
-        desc: "Authentication method (jwt, devise, custom)"
+                                 desc: "Authentication method (jwt, devise, custom)"
       class_option :subject_class, type: :string, default: "User",
-        desc: "The model class being tracked (User, Member, etc.)"
+                                   desc: "The model class being tracked (User, Member, etc.)"
       class_option :subject_column, type: :string, default: "user_id",
-        desc: "Foreign key column name for the subject"
+                                    desc: "Foreign key column name for the subject"
       class_option :session_column, type: :string, default: "jti",
-        desc: "Column name for session identifier"
+                                    desc: "Column name for session identifier"
 
       def create_initializer
         template "initializer.rb.tt", "config/initializers/where_is_waldo.rb"

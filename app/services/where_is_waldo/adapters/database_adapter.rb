@@ -45,8 +45,12 @@ module WhereIsWaldo
           subject_active: subject_active,
           updated_at: now
         }
-        # Convert JS timestamp (ms) to Ruby Time
-        updates[:last_activity] = Time.zone.at(last_activity_at / 1000.0) if last_activity_at
+        # Update last_activity: use JS timestamp if provided, otherwise use current time when active
+        if last_activity_at
+          updates[:last_activity] = Time.zone.at(last_activity_at / 1000.0)
+        elsif subject_active
+          updates[:last_activity] = now
+        end
         updates[:metadata] = metadata if metadata.present?
 
         scope = Presence.where(session_column => session_id)
