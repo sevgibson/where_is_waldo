@@ -82,7 +82,7 @@ jobs:
           RAILS_ENV=development bundle exec rake db:create db:migrate
 
       - name: Run Cypress tests
-        uses: cypress-io/github-action@v6
+        uses: cypress-io/github-action@v7
         with:
           start: yarn server
           wait-on: 'http://localhost:3001'
