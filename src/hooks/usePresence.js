@@ -36,7 +36,7 @@ export function usePresence(options = {}) {
   const subscriptionRef = useRef(null);
   const heartbeatIntervalRef = useRef(null);
   const activityTimeoutRef = useRef(null);
-  const lastActivityTimeRef = useRef(Date.now());
+  const lastActivityTimeRef = useRef(0);
 
   // Debug logging helper
   const log = useCallback((...args) => {
@@ -44,8 +44,10 @@ export function usePresence(options = {}) {
   }, [config.debug]);
 
   // Refs to track latest values for callbacks (avoids stale closures)
-  const stateRef = useRef({ tabVisible: true, windowFocused: document.hasFocus(), subjectActive: true });
-  stateRef.current = { tabVisible, windowFocused, subjectActive };
+  const stateRef = useRef({ tabVisible: true, windowFocused: true, subjectActive: true });
+  useEffect(() => {
+    stateRef.current = { tabVisible, windowFocused, subjectActive };
+  }, [tabVisible, windowFocused, subjectActive]);
 
   // Track user activity
   const handleActivity = useCallback(() => {
