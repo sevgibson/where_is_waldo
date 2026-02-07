@@ -10,7 +10,7 @@ class CreatePresences < ActiveRecord::Migration<%= migration_version %>
       t.datetime :last_activity
       t.boolean :tab_visible, default: true, null: false
       t.boolean :subject_active, default: true, null: false
-      t.json :metadata
+      t.<%= json_column_type %> :metadata
       t.timestamps
     end
 

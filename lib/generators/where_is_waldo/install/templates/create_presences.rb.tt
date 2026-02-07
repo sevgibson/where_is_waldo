@@ -17,7 +17,7 @@ class Create<%= table_name.camelize %> < ActiveRecord::Migration[7.0]
       t.boolean :subject_active, default: true, null: false
 
       # Extensible metadata
-      t.json :metadata
+      t.<%= json_column_type %> :metadata
 
       t.timestamps
     end

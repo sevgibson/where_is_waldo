@@ -4,6 +4,10 @@ module WhereIsWaldo
   class Presence < ApplicationRecord
     self.table_name = -> { WhereIsWaldo.config.table_name }
 
+    # Ensure metadata column works with any database (jsonb, json, or text)
+    # This makes the column portable across PostgreSQL, MySQL, and SQLite
+    attribute :metadata, :json
+
     class << self
       def table_name
         tn = WhereIsWaldo.config.table_name

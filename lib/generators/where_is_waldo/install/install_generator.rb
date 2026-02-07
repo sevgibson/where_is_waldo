@@ -81,6 +81,23 @@ module WhereIsWaldo
       def adapter
         options[:adapter]
       end
+
+      # Detect database adapter and return appropriate JSON column type
+      def json_column_type
+        adapter_name = ActiveRecord::Base.connection.adapter_name.downcase
+        case adapter_name
+        when /postgresql/, /postgis/
+          :jsonb
+        when /mysql/, /trilogy/
+          :json
+        else
+          # SQLite and others - use text with serialization
+          :text
+        end
+      rescue StandardError
+        # If we can't detect, default to text (most portable)
+        :text
+      end
     end
   end
 end
