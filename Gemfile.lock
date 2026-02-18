@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    where_is_waldo (0.0.22)
+    where_is_waldo (0.0.23)
       rails (>= 7.0)
 
 GEM
@@ -287,7 +287,6 @@ GEM
 
 PLATFORMS
   x86_64-linux
-  x86_64-linux-gnu
 
 DEPENDENCIES
   database_cleaner-active_record (~> 2.0)
