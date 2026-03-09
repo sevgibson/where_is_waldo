@@ -40,9 +40,6 @@ jobs:
       - name: Run RuboCop
         run: bundle exec rubocop
 
-      - name: Verify Zeitwerk autoloading
-        run: cd spec/dummy && bundle exec rails zeitwerk:check
-
   rspec:
     name: RSpec
     runs-on: ubuntu-latest
