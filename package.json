@@ -61,6 +61,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@rails/actioncable": "^8.1.200"
+    "@rails/actioncable": "^8.1.300"
   }
 }
