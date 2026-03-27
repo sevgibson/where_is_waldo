@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   spec.name = "where_is_waldo"
   spec.version = WhereIsWaldo::VERSION
   spec.authors = ["Scott Gibson"]
-  spec.email = ["scott@ideasbyscott.com"]
+  spec.email = ["scott@byscott.io"]
 
   spec.summary = "Real-time presence tracking for Rails + React applications"
   spec.description = "Track who's online, their activity state, and broadcast messages. " \
